@@ -65,7 +65,7 @@ export const ContainersPage: React.FC = () => {
   const generateQRCode = async (container: ContainerWithZone) => {
     try {
       // Generate the URL for the container view page
-      const containerUrl = `https://vb2tech.github.io/hotzone/containers/${container.id}`
+      const containerUrl = `https://vb2tech.github.io/hotzone/#/containers/${container.id}`
       
       // Generate QR code as data URL
       const qrCodeDataUrl = await QRCodeLib.toDataURL(containerUrl, {
