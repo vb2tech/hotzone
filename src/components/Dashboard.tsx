@@ -38,14 +38,18 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
   const fetchStats = async () => {
     try {
-      // Fetch counts from zones, containers, cards, and comics
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Fetch counts from zones, containers, cards, and comics for current user only
       const [zonesResult, containersResult, cardsResult, comicsResult, recentCardsResult, recentComicsResult] = await Promise.all([
-        supabase.from('zones').select('id', { count: 'exact', head: true }),
-        supabase.from('containers').select('id', { count: 'exact', head: true }),
-        supabase.from('cards').select('*', { count: 'exact', head: true }),
-        supabase.from('comics').select('*', { count: 'exact', head: true }),
-        supabase.from('cards').select('*').order('created_at', { ascending: false }).limit(3),
-        supabase.from('comics').select('*').order('created_at', { ascending: false }).limit(3)
+        supabase.from('zones').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('containers').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('cards').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('comics').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('cards').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3),
+        supabase.from('comics').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3)
       ])
 
       // Combine recent items

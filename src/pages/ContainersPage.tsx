@@ -19,6 +19,10 @@ export const ContainersPage: React.FC = () => {
 
   const fetchContainers = async () => {
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
       const { data, error } = await supabase
         .from('containers')
         .select(`
@@ -28,6 +32,7 @@ export const ContainersPage: React.FC = () => {
             name
           )
         `)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -60,7 +65,7 @@ export const ContainersPage: React.FC = () => {
   const generateQRCode = async (container: ContainerWithZone) => {
     try {
       // Generate the URL for the container view page
-      const containerUrl = `https://hotzone.vb2tech.com/#/containers/${container.id}`
+      const containerUrl = `https://vb2tech.github.io/hotzone/containers/${container.id}`
       
       // Generate QR code as data URL
       const qrCodeDataUrl = await QRCodeLib.toDataURL(containerUrl, {

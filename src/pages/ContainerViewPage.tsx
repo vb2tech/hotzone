@@ -46,7 +46,11 @@ export const ContainerViewPage: React.FC = () => {
     try {
       setLoading(true)
       
-      // Fetch container with zone info
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
+      // Fetch container with zone info for current user only
       const { data: containerData, error: containerError } = await supabase
         .from('containers')
         .select(`
@@ -57,22 +61,25 @@ export const ContainerViewPage: React.FC = () => {
           )
         `)
         .eq('id', containerId)
+        .eq('user_id', user.id)
         .single()
 
       if (containerError) throw containerError
       setContainer(containerData)
 
-      // Fetch items from both cards and comics tables
+      // Fetch items from both cards and comics tables for current user only
       const [cardsResult, comicsResult] = await Promise.all([
         supabase
           .from('cards')
           .select('*')
           .eq('container_id', containerId)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
         supabase
           .from('comics')
           .select('*')
           .eq('container_id', containerId)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false })
       ])
 

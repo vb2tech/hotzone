@@ -40,7 +40,11 @@ export const ItemsPage: React.FC = () => {
 
   const fetchItems = async () => {
     try {
-      // Fetch cards and comics separately
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Fetch cards and comics separately for current user only
       const [cardsResult, comicsResult] = await Promise.all([
         supabase
           .from('cards')
@@ -55,6 +59,7 @@ export const ItemsPage: React.FC = () => {
               )
             )
           `)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
         supabase
           .from('comics')
@@ -69,6 +74,7 @@ export const ItemsPage: React.FC = () => {
               )
             )
           `)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false })
       ])
 

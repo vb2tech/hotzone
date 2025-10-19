@@ -31,7 +31,11 @@ export const ContainerHeatMap: React.FC = () => {
 
   const fetchContainersWithItems = async () => {
     try {
-      // Fetch containers with their items and zone info
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Fetch containers with their items and zone info for current user only
       const { data: containersData, error: containersError } = await supabase
         .from('containers')
         .select(`
@@ -43,6 +47,7 @@ export const ContainerHeatMap: React.FC = () => {
           cards (id),
           comics (id)
         `)
+        .eq('user_id', user.id)
 
       if (containersError) throw containersError
 
