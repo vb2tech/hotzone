@@ -6,6 +6,7 @@ import { LoginForm } from './components/LoginForm'
 import { Dashboard } from './components/Dashboard'
 import { ZonesPage } from './pages/ZonesPage'
 import { ZoneForm } from './pages/ZoneForm'
+import { ZoneViewPage } from './pages/ZoneViewPage'
 import { ZoneHeatMap } from './components/ZoneHeatMap'
 import { ContainerHeatMap } from './components/ContainerHeatMap'
 import { ContainersPage } from './pages/ContainersPage'
@@ -38,6 +39,7 @@ const AppContent: React.FC = () => {
           <Route path="/" element={<Dashboard />} />
           <Route path="/zones" element={<ZonesPage />} />
           <Route path="/zones/new" element={<ZoneForm />} />
+          <Route path="/zones/:id" element={<ZoneViewPage />} />
           <Route path="/zones/:id/edit" element={<ZoneForm />} />
           <Route path="/zones/heatmap" element={<ZoneHeatMap />} />
           <Route path="/containers" element={<ContainersPage />} />

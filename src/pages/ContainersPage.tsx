@@ -173,8 +173,11 @@ export const ContainersPage: React.FC = () => {
       {containers.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {containers.map((container) => (
-            <div key={container.id} className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-6">
+            <div key={container.id} className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200">
+              <Link 
+                to={`/containers/${container.id}`}
+                className="block p-6 hover:bg-gray-50 transition-colors duration-200"
+              >
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
                     <Package className="h-6 w-6 text-green-600" />
@@ -187,9 +190,15 @@ export const ContainersPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-2">
+              </Link>
+              <div className="px-6 pb-6">
+                <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => generateQRCode(container)}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      generateQRCode(container)
+                    }}
                     className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                     <QrCode className="h-4 w-4 mr-2" />
@@ -197,13 +206,18 @@ export const ContainersPage: React.FC = () => {
                   </button>
                   <Link
                     to={`/containers/${container.id}/edit`}
+                    onClick={(e) => e.stopPropagation()}
                     className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
                   </Link>
                   <button
-                    onClick={() => deleteContainer(container.id)}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      deleteContainer(container.id)
+                    }}
                     className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
