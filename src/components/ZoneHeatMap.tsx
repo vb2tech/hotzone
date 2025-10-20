@@ -199,8 +199,8 @@ export const ZoneHeatMap: React.FC = () => {
               onClick={() => handleZoneClick(point)}
             >
               <div className="flex items-center justify-center h-full">
-                <div className="text-white font-bold text-xs">
-                  {point.containerCount}
+                <div className="text-white font-bold text-xs text-center px-1">
+                  {point.name}
                 </div>
               </div>
             </div>

@@ -188,8 +188,8 @@ export const ContainerHeatMap: React.FC = () => {
               onClick={() => handleContainerClick(point)}
             >
               <div className="flex items-center justify-center h-full">
-                <div className="text-white font-bold text-xs">
-                  {point.itemCount}
+                <div className="text-white font-bold text-xs text-center px-1">
+                  {point.name}
                 </div>
               </div>
             </div>
