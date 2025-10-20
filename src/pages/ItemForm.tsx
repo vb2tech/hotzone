@@ -18,8 +18,11 @@ export const ItemForm: React.FC = () => {
     grade: null as number | null,
     condition: '',
     quantity: 1,
+    price: null as number | null,
+    cost: null as number | null,
     // Card specific fields
     player: '',
+    team: '',
     manufacturer: '',
     sport: '',
     card_year: new Date().getFullYear(),
@@ -82,8 +85,11 @@ export const ItemForm: React.FC = () => {
           grade: cardData.grade,
           condition: cardData.condition || '',
           quantity: cardData.quantity || 1,
+          price: cardData.price || null,
+          cost: cardData.cost || null,
           // Card specific fields
           player: cardData.player || '',
+          team: cardData.team || '',
           manufacturer: cardData.manufacturer || '',
           sport: cardData.sport || '',
           card_year: cardData.year || new Date().getFullYear(),
@@ -114,8 +120,11 @@ export const ItemForm: React.FC = () => {
           grade: comicData.grade,
           condition: comicData.condition || '',
           quantity: comicData.quantity || 1,
+          price: comicData.price || null,
+          cost: comicData.cost || null,
           // Card specific fields (defaults)
           player: '',
+          team: '',
           manufacturer: '',
           sport: '',
           card_year: new Date().getFullYear(),
@@ -149,13 +158,16 @@ export const ItemForm: React.FC = () => {
         container_id: formData.container_id,
         grade: formData.grade,
         condition: formData.condition,
-        quantity: formData.quantity
+        quantity: formData.quantity,
+        price: formData.price,
+        cost: formData.cost
       }
 
       if (formData.item_type === 'card') {
         const cardData = {
           ...baseData,
           player: formData.player,
+          team: formData.team,
           manufacturer: formData.manufacturer,
           sport: formData.sport,
           year: formData.card_year,
@@ -324,6 +336,36 @@ export const ItemForm: React.FC = () => {
                   placeholder="1"
                 />
               </div>
+              <div>
+                <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+                  Price
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="price"
+                  id="price"
+                  value={formData.price || ''}
+                  onChange={handleChange}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label htmlFor="cost" className="block text-sm font-medium text-gray-700">
+                  Cost
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="cost"
+                  id="cost"
+                  value={formData.cost || ''}
+                  onChange={handleChange}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="0.00"
+                />
+              </div>
             </div>
 
             {/* Card-specific fields */}
@@ -344,6 +386,21 @@ export const ItemForm: React.FC = () => {
                       onChange={handleChange}
                       className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                       placeholder="e.g., Michael Jordan"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="team" className="block text-sm font-medium text-gray-700">
+                      Team *
+                    </label>
+                    <input
+                      type="text"
+                      name="team"
+                      id="team"
+                      required
+                      value={formData.team}
+                      onChange={handleChange}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="e.g., Chicago Bulls, Los Angeles Lakers"
                     />
                   </div>
                   <div>

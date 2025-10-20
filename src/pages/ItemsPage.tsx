@@ -18,6 +18,7 @@ interface ItemWithDetails {
   }
   // Card fields
   player?: string
+  team?: string
   manufacturer?: string
   sport?: string
   year?: number
@@ -28,6 +29,9 @@ interface ItemWithDetails {
   title?: string
   publisher?: string
   issue?: number
+  // Common fields
+  price?: number | null
+  cost?: number | null
 }
 
 export const ItemsPage: React.FC = () => {
@@ -231,6 +235,20 @@ export const ItemsPage: React.FC = () => {
                         </span>
                       )}
                     </div>
+                    {(item.price || item.cost) && (
+                      <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
+                        {item.price && (
+                          <span className="font-medium text-green-600">
+                            Price: ${item.price.toFixed(2)}
+                          </span>
+                        )}
+                        {item.cost && (
+                          <span className="font-medium text-blue-600">
+                            Cost: ${item.cost.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </Link>

@@ -18,6 +18,7 @@ interface DashboardStats {
     quantity: number
     item_type: 'card' | 'comic'
     player?: string
+    team?: string
     title?: string
     manufacturer?: string
     sport?: string
@@ -26,6 +27,8 @@ interface DashboardStats {
     number_out_of?: number | null
     publisher?: string
     issue?: number
+    price?: number | null
+    cost?: number | null
   }[]
 }
 

@@ -19,6 +19,7 @@ interface ItemWithDetails {
   item_type: 'card' | 'comic'
   // Card fields
   player?: string
+  team?: string
   manufacturer?: string
   sport?: string
   year?: number
@@ -29,6 +30,9 @@ interface ItemWithDetails {
   title?: string
   publisher?: string
   issue?: number
+  // Common fields
+  price?: number | null
+  cost?: number | null
 }
 
 export const ContainerViewPage: React.FC = () => {
@@ -216,6 +220,20 @@ export const ContainerViewPage: React.FC = () => {
                     {item.condition && (
                       <div className="mt-1 text-sm text-gray-500">
                         Condition: {item.condition}
+                      </div>
+                    )}
+                    {(item.price || item.cost) && (
+                      <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
+                        {item.price && (
+                          <span className="font-medium text-green-600">
+                            Price: ${item.price.toFixed(2)}
+                          </span>
+                        )}
+                        {item.cost && (
+                          <span className="font-medium text-blue-600">
+                            Cost: ${item.cost.toFixed(2)}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>

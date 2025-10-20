@@ -147,6 +147,18 @@ export const ComicViewPage: React.FC = () => {
               <dt className="text-sm font-medium text-gray-500">Quantity</dt>
               <dd className="mt-1 text-sm text-gray-900">{comic.quantity}</dd>
             </div>
+            {comic.price && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Price</dt>
+                <dd className="mt-1 text-sm text-gray-900">${comic.price.toFixed(2)}</dd>
+              </div>
+            )}
+            {comic.cost && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Cost</dt>
+                <dd className="mt-1 text-sm text-gray-900">${comic.cost.toFixed(2)}</dd>
+              </div>
+            )}
             {comic.grade && (
               <div>
                 <dt className="text-sm font-medium text-gray-500">Grade</dt>

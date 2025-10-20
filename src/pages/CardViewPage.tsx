@@ -132,6 +132,10 @@ export const CardViewPage: React.FC = () => {
               <dd className="mt-1 text-sm text-gray-900">{card.player}</dd>
             </div>
             <div>
+              <dt className="text-sm font-medium text-gray-500">Team</dt>
+              <dd className="mt-1 text-sm text-gray-900">{card.team}</dd>
+            </div>
+            <div>
               <dt className="text-sm font-medium text-gray-500">Manufacturer</dt>
               <dd className="mt-1 text-sm text-gray-900">{card.manufacturer}</dd>
             </div>
@@ -165,6 +169,18 @@ export const CardViewPage: React.FC = () => {
               <dt className="text-sm font-medium text-gray-500">Quantity</dt>
               <dd className="mt-1 text-sm text-gray-900">{card.quantity}</dd>
             </div>
+            {card.price && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Price</dt>
+                <dd className="mt-1 text-sm text-gray-900">${card.price.toFixed(2)}</dd>
+              </div>
+            )}
+            {card.cost && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Cost</dt>
+                <dd className="mt-1 text-sm text-gray-900">${card.cost.toFixed(2)}</dd>
+              </div>
+            )}
             {card.grade && (
               <div>
                 <dt className="text-sm font-medium text-gray-500">Grade</dt>
