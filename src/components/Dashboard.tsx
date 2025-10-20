@@ -101,7 +101,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <Link to="/zones" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 cursor-pointer">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -115,9 +115,9 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </Link>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <Link to="/containers" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 cursor-pointer">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -131,9 +131,9 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </Link>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <Link to="/items" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 cursor-pointer">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -147,7 +147,7 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Recent Items Table */}
