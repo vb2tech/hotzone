@@ -39,6 +39,7 @@ export const ItemForm: React.FC = () => {
   const [containers, setContainers] = useState<ContainerWithZone[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [duplicateError, setDuplicateError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchContainers()
@@ -154,6 +155,12 @@ export const ItemForm: React.FC = () => {
     setSaving(true)
 
     try {
+      // Check for duplicates before saving
+      const hasDuplicate = await checkForDuplicate()
+      if (hasDuplicate) {
+        setSaving(false)
+        return
+      }
       const baseData = {
         container_id: formData.container_id,
         grade: formData.grade,
@@ -218,11 +225,77 @@ export const ItemForm: React.FC = () => {
     }
   }
 
+  const checkForDuplicate = async (): Promise<boolean> => {
+    if (!formData.container_id) return false
+
+    try {
+      if (formData.item_type === 'card') {
+        // Check for duplicate cards in the same container
+        const { data: existingCards, error } = await supabase
+          .from('cards')
+          .select('id')
+          .eq('container_id', formData.container_id)
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .eq('player', formData.player)
+          .eq('team', formData.team)
+          .eq('manufacturer', formData.manufacturer)
+          .eq('sport', formData.sport)
+          .eq('year', formData.card_year)
+
+        if (error) throw error
+
+        // If editing, exclude the current item from the check
+        const filteredCards = isEdit && id 
+          ? existingCards?.filter(card => card.id !== id) || []
+          : existingCards || []
+
+        if (filteredCards.length > 0) {
+          setDuplicateError('A card with the same player, team, manufacturer, sport, and year already exists in this container.')
+          return true
+        }
+      } else {
+        // Check for duplicate comics in the same container
+        const { data: existingComics, error } = await supabase
+          .from('comics')
+          .select('id')
+          .eq('container_id', formData.container_id)
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .eq('title', formData.title)
+          .eq('publisher', formData.publisher)
+          .eq('issue', formData.issue)
+          .eq('year', formData.comic_year)
+
+        if (error) throw error
+
+        // If editing, exclude the current item from the check
+        const filteredComics = isEdit && id 
+          ? existingComics?.filter(comic => comic.id !== id) || []
+          : existingComics || []
+
+        if (filteredComics.length > 0) {
+          setDuplicateError('A comic with the same title, publisher, issue, and year already exists in this container.')
+          return true
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for duplicates:', error)
+      setDuplicateError('Error checking for duplicates. Please try again.')
+      return true
+    }
+
+    setDuplicateError(null)
+    return false
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
     }))
+    // Clear duplicate error when form data changes
+    if (duplicateError) {
+      setDuplicateError(null)
+    }
   }
 
   if (loading) {
@@ -252,6 +325,26 @@ export const ItemForm: React.FC = () => {
           </h1>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Duplicate Error Message */}
+            {duplicateError && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">
+                      Duplicate Item Detected
+                    </h3>
+                    <div className="mt-2 text-sm text-red-700">
+                      {duplicateError}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div>
               <label htmlFor="item_type" className="block text-sm font-medium text-gray-700">
