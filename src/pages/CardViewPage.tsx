@@ -11,6 +11,8 @@ export const CardViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const [card, setCard] = useState<Card | null>(null)
   const [container, setContainer] = useState<ContainerWithZone | null>(null)
+  const [duplicateCards, setDuplicateCards] = useState<Array<Card & { container: ContainerWithZone }>>([])
+  const [totalQuantity, setTotalQuantity] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -60,6 +62,42 @@ export const CardViewPage: React.FC = () => {
       }
 
       setContainer(containerWithZone)
+
+      // Fetch all duplicate cards (same player, manufacturer, sport, year)
+      const { data: duplicateCardsData, error: duplicateError } = await supabase
+        .from('cards')
+        .select(`
+          *,
+          containers (
+            id,
+            name,
+            zones (
+              id,
+              name
+            )
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('player', cardData.player)
+        .eq('manufacturer', cardData.manufacturer)
+        .eq('sport', cardData.sport)
+        .eq('year', cardData.year)
+
+      if (duplicateError) throw duplicateError
+
+      const duplicateCardsWithContainers = duplicateCardsData?.map(card => ({
+        ...card,
+        container: {
+          ...card.containers,
+          zone: card.containers.zones
+        }
+      })) || []
+
+      setDuplicateCards(duplicateCardsWithContainers)
+
+      // Calculate total quantity
+      const total = duplicateCardsWithContainers.reduce((sum, card) => sum + card.quantity, 0)
+      setTotalQuantity(total)
     } catch (error) {
       console.error('Error fetching card and container:', error)
     } finally {
@@ -196,6 +234,55 @@ export const CardViewPage: React.FC = () => {
           </dl>
         </div>
       </div>
+
+      {/* Total Quantity and Other Locations */}
+      {duplicateCards.length > 1 && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center">
+              <CreditCard className="h-6 w-6 text-blue-600 mr-3" />
+              <h2 className="text-lg font-medium text-gray-900">Total Inventory</h2>
+            </div>
+          </div>
+          <div className="px-6 py-4">
+            <div className="mb-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-500">Total Quantity Across All Containers</span>
+                <span className="text-2xl font-bold text-blue-600">{totalQuantity}</span>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">All Locations</h3>
+              <div className="space-y-2">
+                {duplicateCards.map((duplicateCard) => (
+                  <div key={duplicateCard.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-900">
+                          {duplicateCard.container.name}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Zone: {duplicateCard.container.zone?.name || 'Unknown Zone'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <span className="text-sm text-gray-500">
+                        Quantity: {duplicateCard.quantity}
+                      </span>
+                      {duplicateCard.id === card?.id && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Current
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Container Information */}
       {container && (

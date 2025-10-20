@@ -11,6 +11,8 @@ export const ComicViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const [comic, setComic] = useState<Comic | null>(null)
   const [container, setContainer] = useState<ContainerWithZone | null>(null)
+  const [duplicateComics, setDuplicateComics] = useState<Array<Comic & { container: ContainerWithZone }>>([])
+  const [totalQuantity, setTotalQuantity] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -60,6 +62,42 @@ export const ComicViewPage: React.FC = () => {
       }
 
       setContainer(containerWithZone)
+
+      // Fetch all duplicate comics (same title, publisher, issue, year)
+      const { data: duplicateComicsData, error: duplicateError } = await supabase
+        .from('comics')
+        .select(`
+          *,
+          containers (
+            id,
+            name,
+            zones (
+              id,
+              name
+            )
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('title', comicData.title)
+        .eq('publisher', comicData.publisher)
+        .eq('issue', comicData.issue)
+        .eq('year', comicData.year)
+
+      if (duplicateError) throw duplicateError
+
+      const duplicateComicsWithContainers = duplicateComicsData?.map(comic => ({
+        ...comic,
+        container: {
+          ...comic.containers,
+          zone: comic.containers.zones
+        }
+      })) || []
+
+      setDuplicateComics(duplicateComicsWithContainers)
+
+      // Calculate total quantity
+      const total = duplicateComicsWithContainers.reduce((sum, comic) => sum + comic.quantity, 0)
+      setTotalQuantity(total)
     } catch (error) {
       console.error('Error fetching comic and container:', error)
     } finally {
@@ -174,6 +212,55 @@ export const ComicViewPage: React.FC = () => {
           </dl>
         </div>
       </div>
+
+      {/* Total Quantity and Other Locations */}
+      {duplicateComics.length > 1 && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center">
+              <BookOpen className="h-6 w-6 text-green-600 mr-3" />
+              <h2 className="text-lg font-medium text-gray-900">Total Inventory</h2>
+            </div>
+          </div>
+          <div className="px-6 py-4">
+            <div className="mb-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-500">Total Quantity Across All Containers</span>
+                <span className="text-2xl font-bold text-green-600">{totalQuantity}</span>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">All Locations</h3>
+              <div className="space-y-2">
+                {duplicateComics.map((duplicateComic) => (
+                  <div key={duplicateComic.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-900">
+                          {duplicateComic.container.name}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Zone: {duplicateComic.container.zone?.name || 'Unknown Zone'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <span className="text-sm text-gray-500">
+                        Quantity: {duplicateComic.quantity}
+                      </span>
+                      {duplicateComic.id === comic?.id && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Current
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Container Information */}
       {container && (
