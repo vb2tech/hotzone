@@ -24,6 +24,8 @@ export const ItemForm: React.FC = () => {
     sport: '',
     card_year: new Date().getFullYear(),
     number: '',
+    number_out_of: null as number | null,
+    number_type: 'single' as 'single' | 'out_of',
     is_rookie: false,
     // Comic specific fields
     title: '',
@@ -86,6 +88,8 @@ export const ItemForm: React.FC = () => {
           sport: cardData.sport || '',
           card_year: cardData.year || new Date().getFullYear(),
           number: cardData.number || '',
+          number_out_of: cardData.number_out_of || null,
+          number_type: cardData.number_out_of ? 'out_of' : 'single',
           is_rookie: cardData.is_rookie || false,
           // Comic specific fields (defaults)
           title: '',
@@ -154,6 +158,7 @@ export const ItemForm: React.FC = () => {
           sport: formData.sport,
           year: formData.card_year,
           number: formData.number,
+          number_out_of: formData.number_type === 'out_of' ? formData.number_out_of : null,
           is_rookie: formData.is_rookie
         }
 
@@ -384,19 +389,84 @@ export const ItemForm: React.FC = () => {
                       placeholder="2023"
                     />
                   </div>
-                  <div>
-                    <label htmlFor="number" className="block text-sm font-medium text-gray-700">
-                      Card Number
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Card Number *
                     </label>
-                    <input
-                      type="text"
-                      name="number"
-                      id="number"
-                      value={formData.number}
-                      onChange={handleChange}
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="e.g., #23, #1/100"
-                    />
+                    <div className="space-y-4">
+                      {/* Single Number Option */}
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          name="number_type"
+                          id="number_type_single"
+                          value="single"
+                          checked={formData.number_type === 'single'}
+                          onChange={handleChange}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <label htmlFor="number_type_single" className="ml-2 block text-sm text-gray-900">
+                          Single Number
+                        </label>
+                      </div>
+                      {formData.number_type === 'single' && (
+                        <div className="ml-6">
+                          <input
+                            type="text"
+                            name="number"
+                            id="number"
+                            required
+                            value={formData.number}
+                            onChange={handleChange}
+                            className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            placeholder="e.g., #23, #1"
+                          />
+                        </div>
+                      )}
+
+                      {/* Out of Number Option */}
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          name="number_type"
+                          id="number_type_out_of"
+                          value="out_of"
+                          checked={formData.number_type === 'out_of'}
+                          onChange={handleChange}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <label htmlFor="number_type_out_of" className="ml-2 block text-sm text-gray-900">
+                          Number out of Total
+                        </label>
+                      </div>
+                      {formData.number_type === 'out_of' && (
+                        <div className="ml-6">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="text"
+                              name="number"
+                              id="number_out_of_first"
+                              required
+                              value={formData.number}
+                              onChange={handleChange}
+                              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                              placeholder="e.g., 1"
+                            />
+                            <span className="text-sm text-gray-500">out of</span>
+                            <input
+                              type="number"
+                              name="number_out_of"
+                              id="number_out_of_second"
+                              required
+                              value={formData.number_out_of || ''}
+                              onChange={handleChange}
+                              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                              placeholder="e.g., 100"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center">
                     <input

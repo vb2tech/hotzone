@@ -41,6 +41,7 @@ export interface Card extends BaseItem {
   sport: string
   year: number
   number: string
+  number_out_of: number | null
   is_rookie: boolean
 }
 

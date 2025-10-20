@@ -23,6 +23,7 @@ interface ItemWithDetails {
   sport?: string
   year?: number
   number?: string
+  number_out_of?: number | null
   is_rookie?: boolean
   // Comic fields
   title?: string

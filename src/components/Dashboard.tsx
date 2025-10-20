@@ -22,6 +22,8 @@ interface DashboardStats {
     manufacturer?: string
     sport?: string
     year?: number
+    number?: string
+    number_out_of?: number | null
     publisher?: string
     issue?: number
   }[]

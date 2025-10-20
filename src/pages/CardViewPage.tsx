@@ -145,7 +145,9 @@ export const CardViewPage: React.FC = () => {
             </div>
             <div>
               <dt className="text-sm font-medium text-gray-500">Card Number</dt>
-              <dd className="mt-1 text-sm text-gray-900">{card.number}</dd>
+              <dd className="mt-1 text-sm text-gray-900">
+                {card.number_out_of ? `${card.number} out of ${card.number_out_of}` : card.number}
+              </dd>
             </div>
             <div>
               <dt className="text-sm font-medium text-gray-500">Rookie Card</dt>
