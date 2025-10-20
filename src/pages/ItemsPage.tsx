@@ -186,8 +186,11 @@ export const ItemsPage: React.FC = () => {
       {filteredItems.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredItems.map((item) => (
-            <div key={item.id} className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-6">
+            <div key={item.id} className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200">
+              <Link 
+                to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
+                className="block p-6 hover:bg-gray-50 transition-colors duration-200"
+              >
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
                     <Layers className="h-6 w-6 text-purple-600" />
@@ -229,7 +232,9 @@ export const ItemsPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 flex space-x-3">
+              </Link>
+              <div className="px-6 pb-4">
+                <div className="flex space-x-3">
                   <Link
                     to={`/items/${item.id}/edit`}
                     className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

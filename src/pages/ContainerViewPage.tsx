@@ -167,8 +167,11 @@ export const ContainerViewPage: React.FC = () => {
       {items.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {items.map((item) => (
-            <div key={item.id} className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-6">
+            <div key={item.id} className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200">
+              <Link 
+                to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
+                className="block p-6 hover:bg-gray-50 transition-colors duration-200"
+              >
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
                     <Layers className="h-6 w-6 text-purple-600" />
@@ -210,7 +213,7 @@ export const ContainerViewPage: React.FC = () => {
                     )}
                   </div>
                 </div>
-              </div>
+              </Link>
             </div>
           ))}
         </div>

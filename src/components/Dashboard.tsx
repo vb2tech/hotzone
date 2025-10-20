@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { MapPin, Package, Layers, TrendingUp } from 'lucide-react'
 
@@ -171,9 +172,14 @@ export const Dashboard: React.FC = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {stats.recentItems.map((item) => (
-                    <tr key={item.id}>
+                    <tr key={item.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {item.item_type === 'card' ? item.player : item.title}
+                        <Link 
+                          to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
+                          className="text-blue-600 hover:text-blue-700 hover:underline"
+                        >
+                          {item.item_type === 'card' ? item.player : item.title}
+                        </Link>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
