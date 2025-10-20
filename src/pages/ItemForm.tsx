@@ -120,6 +120,8 @@ export const ItemForm: React.FC = () => {
           sport: '',
           card_year: new Date().getFullYear(),
           number: '',
+          number_out_of: null,
+          number_type: 'single',
           is_rookie: false,
           // Comic specific fields
           title: comicData.title || '',
