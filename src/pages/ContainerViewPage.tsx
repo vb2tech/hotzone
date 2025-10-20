@@ -65,7 +65,13 @@ export const ContainerViewPage: React.FC = () => {
         .single()
 
       if (containerError) throw containerError
-      setContainer(containerData)
+      
+      const containerWithZone = {
+        ...containerData,
+        zone: containerData.zones
+      }
+      
+      setContainer(containerWithZone)
 
       // Fetch items from both cards and comics tables for current user only
       const [cardsResult, comicsResult] = await Promise.all([
