@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, Container, Zone } from '../lib/supabase'
-import { Package, Plus, Edit, Trash2, MapPin, Flame, QrCode, Printer, X } from 'lucide-react'
+import { Package, Plus, Edit, Trash2, MapPin, Flame, QrCode, Printer, X, LayoutGrid, List } from 'lucide-react'
 import QRCodeLib from 'qrcode'
+
+type ViewMode = 'card' | 'list'
 
 interface ContainerWithZone extends Container {
   zone: Zone
@@ -12,6 +14,15 @@ export const ContainersPage: React.FC = () => {
   const [containers, setContainers] = useState<ContainerWithZone[]>([])
   const [loading, setLoading] = useState(true)
   const [qrCodeModal, setQrCodeModal] = useState<{ container: ContainerWithZone; qrCodeDataUrl: string } | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem('containers-view-mode')
+    return (saved as ViewMode) || 'list'
+  })
+
+  const toggleViewMode = (mode: ViewMode) => {
+    setViewMode(mode)
+    localStorage.setItem('containers-view-mode', mode)
+  }
 
   useEffect(() => {
     fetchContainers()
@@ -153,6 +164,31 @@ export const ContainersPage: React.FC = () => {
           <p className="mt-2 text-gray-600">Manage your storage containers</p>
         </div>
         <div className="flex space-x-3">
+          {/* View Toggle */}
+          <div className="inline-flex rounded-md shadow-sm" role="group">
+            <button
+              type="button"
+              onClick={() => toggleViewMode('card')}
+              className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-l-md border ${
+                viewMode === 'card'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleViewMode('list')}
+              className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-r-md border-t border-r border-b ${
+                viewMode === 'list'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
           <Link
             to="/containers/heatmap"
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -171,6 +207,7 @@ export const ContainersPage: React.FC = () => {
       </div>
 
       {containers.length > 0 ? (
+        viewMode === 'card' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {containers.map((container) => (
             <div key={container.id} className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200">
@@ -228,6 +265,63 @@ export const ContainersPage: React.FC = () => {
             </div>
           ))}
         </div>
+        ) : (
+          <div className="bg-white shadow overflow-hidden sm:rounded-md">
+            <ul className="divide-y divide-gray-200">
+              {containers.map((container) => (
+                <li key={container.id} className="hover:bg-gray-50">
+                  <Link to={`/containers/${container.id}`} className="block">
+                    <div className="px-4 py-4 flex items-center justify-between sm:px-6">
+                      <div className="flex items-center min-w-0 flex-1">
+                        <div className="flex-shrink-0">
+                          <Package className="h-6 w-6 text-green-600" />
+                        </div>
+                        <div className="min-w-0 flex-1 px-4">
+                          <div>
+                            <p className="text-sm font-medium text-green-600 truncate">{container.name}</p>
+                            <p className="text-sm text-gray-500 flex items-center">
+                              <MapPin className="h-3 w-3 mr-1" />
+                              {container.zone?.name || 'Unknown Zone'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            generateQRCode(container)
+                          }}
+                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                          <QrCode className="h-4 w-4" />
+                        </button>
+                        <Link
+                          to={`/containers/${container.id}/edit`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Link>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            deleteContainer(container.id)
+                          }}
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
       ) : (
         <div className="text-center py-12">
           <Package className="mx-auto h-12 w-12 text-gray-400" />
