@@ -17,9 +17,9 @@ interface ItemWithDetails {
   quantity: number
   item_type: 'card' | 'comic'
   description: string | null
-  container: Container & {
-    zone: Zone
-  }
+  container: (Container & {
+    zone: Zone | null
+  }) | null
   // Card fields
   player?: string
   team: string | null
@@ -132,23 +132,23 @@ export const ItemsPage: React.FC = () => {
       if (cardsResult.error) throw cardsResult.error
       if (comicsResult.error) throw comicsResult.error
 
-      // Combine and format the data
+      // Combine and format the data, gracefully handling null containers/zones
       const cards = cardsResult.data?.map(card => ({
         ...card,
         item_type: 'card' as const,
-        container: {
+        container: card.containers ? {
           ...card.containers,
-          zone: card.containers.zones
-        }
+          zone: card.containers.zones || null
+        } : null
       })) || []
 
       const comics = comicsResult.data?.map(comic => ({
         ...comic,
         item_type: 'comic' as const,
-        container: {
+        container: comic.containers ? {
           ...comic.containers,
-          zone: comic.containers.zones
-        }
+          zone: comic.containers.zones || null
+        } : null
       })) || []
 
       // Combine and sort by creation date
@@ -322,11 +322,11 @@ export const ItemsPage: React.FC = () => {
                     </p>
                     <div className="mt-2 flex items-center text-sm text-gray-500">
                       <Package className="h-4 w-4 mr-1" />
-                      {item.container.name}
+                      {item.container?.name || 'No Container'}
                     </div>
                     <div className="mt-1 flex items-center text-sm text-gray-500">
                       <MapPin className="h-4 w-4 mr-1" />
-                      {item.container.zone?.name || 'Unknown Zone'}
+                      {item.container?.zone?.name || 'Unknown Zone'}
                     </div>
                     <div className="mt-2 flex items-center space-x-2">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -410,11 +410,11 @@ export const ItemsPage: React.FC = () => {
                             <div className="flex items-center space-x-4 mt-1">
                               <span className="text-xs text-gray-500 flex items-center">
                                 <Package className="h-3 w-3 mr-1" />
-                                {item.container.name}
+                                {item.container?.name || 'No Container'}
                               </span>
                               <span className="text-xs text-gray-500 flex items-center">
                                 <MapPin className="h-3 w-3 mr-1" />
-                                {item.container.zone?.name || 'Unknown Zone'}
+                                {item.container?.zone?.name || 'Unknown Zone'}
                               </span>
                             </div>
                             <div className="flex items-center space-x-3 mt-2">

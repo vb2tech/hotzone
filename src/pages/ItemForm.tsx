@@ -188,16 +188,30 @@ export const ItemForm: React.FC = () => {
         }
 
         if (isEdit && id) {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('cards')
             .update(cardData)
             .eq('id', id)
-          if (error) throw error
+            .select()
+          
+          if (error) {
+            console.error('Card update error:', error)
+            alert(`Failed to update card: ${error.message}`)
+            throw error
+          }
+          console.log('Card updated successfully:', data)
         } else {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('cards')
             .insert([cardData])
-          if (error) throw error
+            .select()
+          
+          if (error) {
+            console.error('Card insert error:', error)
+            alert(`Failed to create card: ${error.message}`)
+            throw error
+          }
+          console.log('Card created successfully:', data)
         }
       } else {
         const comicData = {
@@ -209,16 +223,30 @@ export const ItemForm: React.FC = () => {
         }
 
         if (isEdit && id) {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('comics')
             .update(comicData)
             .eq('id', id)
-          if (error) throw error
+            .select()
+          
+          if (error) {
+            console.error('Comic update error:', error)
+            alert(`Failed to update comic: ${error.message}`)
+            throw error
+          }
+          console.log('Comic updated successfully:', data)
         } else {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('comics')
             .insert([comicData])
-          if (error) throw error
+            .select()
+          
+          if (error) {
+            console.error('Comic insert error:', error)
+            alert(`Failed to create comic: ${error.message}`)
+            throw error
+          }
+          console.log('Comic created successfully:', data)
         }
       }
       navigate('/items')

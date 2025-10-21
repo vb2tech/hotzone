@@ -64,16 +64,30 @@ export const ContainerForm: React.FC = () => {
 
     try {
       if (isEdit && id) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('containers')
           .update(formData)
           .eq('id', id)
-        if (error) throw error
+          .select()
+        
+        if (error) {
+          console.error('Update error:', error)
+          alert(`Failed to update container: ${error.message}`)
+          throw error
+        }
+        console.log('Container updated successfully:', data)
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('containers')
           .insert([formData])
-        if (error) throw error
+          .select()
+        
+        if (error) {
+          console.error('Insert error:', error)
+          alert(`Failed to create container: ${error.message}`)
+          throw error
+        }
+        console.log('Container created successfully:', data)
       }
       navigate('/containers')
     } catch (error) {

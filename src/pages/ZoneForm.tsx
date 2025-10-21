@@ -46,16 +46,30 @@ export const ZoneForm: React.FC = () => {
 
     try {
       if (isEdit && id) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('zones')
           .update(formData)
           .eq('id', id)
-        if (error) throw error
+          .select()
+        
+        if (error) {
+          console.error('Update error:', error)
+          alert(`Failed to update zone: ${error.message}`)
+          throw error
+        }
+        console.log('Zone updated successfully:', data)
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('zones')
           .insert([formData])
-        if (error) throw error
+          .select()
+        
+        if (error) {
+          console.error('Insert error:', error)
+          alert(`Failed to create zone: ${error.message}`)
+          throw error
+        }
+        console.log('Zone created successfully:', data)
       }
       navigate('/zones')
     } catch (error) {
