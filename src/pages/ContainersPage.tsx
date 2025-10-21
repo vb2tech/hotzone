@@ -5,6 +5,7 @@ import { Package, Plus, Edit, Trash2, MapPin, Flame, QrCode, Printer, X, LayoutG
 import QRCodeLib from 'qrcode'
 
 type ViewMode = 'card' | 'list'
+type ViewSize = 'small' | 'medium' | 'large'
 
 interface ContainerWithZone extends Container {
   zone: Zone
@@ -18,11 +19,44 @@ export const ContainersPage: React.FC = () => {
     const saved = localStorage.getItem('containers-view-mode')
     return (saved as ViewMode) || 'list'
   })
+  const [viewSize, setViewSize] = useState<ViewSize>(() => {
+    const saved = localStorage.getItem('containers-view-size')
+    return (saved as ViewSize) || 'medium'
+  })
 
   const toggleViewMode = (mode: ViewMode) => {
     setViewMode(mode)
     localStorage.setItem('containers-view-mode', mode)
   }
+
+  const changeViewSize = (size: ViewSize) => {
+    setViewSize(size)
+    localStorage.setItem('containers-view-size', size)
+  }
+
+  const getCardGridClasses = () => {
+    switch (viewSize) {
+      case 'small':
+        return 'grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4'
+      case 'large':
+        return 'grid grid-cols-1 md:grid-cols-2 gap-6'
+      default:
+        return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+    }
+  }
+
+  const getTextSizeClasses = () => {
+    switch (viewSize) {
+      case 'small':
+        return { heading: 'text-sm', subtext: 'text-xs' }
+      case 'large':
+        return { heading: 'text-xl', subtext: 'text-base' }
+      default:
+        return { heading: 'text-lg', subtext: 'text-sm' }
+    }
+  }
+
+  const textSizes = getTextSizeClasses()
 
   useEffect(() => {
     fetchContainers()
@@ -189,6 +223,42 @@ export const ContainersPage: React.FC = () => {
               <List className="h-4 w-4" />
             </button>
           </div>
+          {/* Size Toggle */}
+          <div className="inline-flex rounded-md shadow-sm" role="group">
+            <button
+              type="button"
+              onClick={() => changeViewSize('small')}
+              className={`inline-flex items-center px-3 py-2 text-xs font-medium rounded-l-md border ${
+                viewSize === 'small'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              S
+            </button>
+            <button
+              type="button"
+              onClick={() => changeViewSize('medium')}
+              className={`inline-flex items-center px-3 py-2 text-sm font-medium border-t border-b ${
+                viewSize === 'medium'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              M
+            </button>
+            <button
+              type="button"
+              onClick={() => changeViewSize('large')}
+              className={`inline-flex items-center px-3 py-2 text-base font-medium rounded-r-md border-t border-r border-b ${
+                viewSize === 'large'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              L
+            </button>
+          </div>
           <Link
             to="/containers/heatmap"
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -208,20 +278,20 @@ export const ContainersPage: React.FC = () => {
 
       {containers.length > 0 ? (
         viewMode === 'card' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={getCardGridClasses()}>
           {containers.map((container) => (
             <div key={container.id} className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200">
               <Link 
                 to={`/containers/${container.id}`}
-                className="block p-6 hover:bg-gray-50 transition-colors duration-200"
+                className={`block ${viewSize === 'small' ? 'p-3' : viewSize === 'large' ? 'p-8' : 'p-6'} hover:bg-gray-50 transition-colors duration-200`}
               >
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <Package className="h-6 w-6 text-green-600" />
+                    <Package className={`${viewSize === 'small' ? 'h-4 w-4' : viewSize === 'large' ? 'h-8 w-8' : 'h-6 w-6'} text-green-600`} />
                   </div>
-                  <div className="ml-4 flex-1">
-                    <h3 className="text-lg font-medium text-gray-900">{container.name}</h3>
-                    <div className="mt-2 flex items-center text-sm text-gray-500">
+                  <div className={`${viewSize === 'small' ? 'ml-2' : viewSize === 'large' ? 'ml-6' : 'ml-4'} flex-1`}>
+                    <h3 className={`${textSizes.heading} font-medium text-gray-900`}>{container.name}</h3>
+                    <div className={`mt-2 flex items-center ${textSizes.subtext} text-gray-500`}>
                       <MapPin className="h-4 w-4 mr-1" />
                       {container.zone?.name || 'Unknown Zone'}
                     </div>
@@ -271,15 +341,15 @@ export const ContainersPage: React.FC = () => {
               {containers.map((container) => (
                 <li key={container.id} className="hover:bg-gray-50">
                   <Link to={`/containers/${container.id}`} className="block">
-                    <div className="px-4 py-4 flex items-center justify-between sm:px-6">
+                    <div className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-6 py-6' : 'px-4 py-4'} flex items-center justify-between sm:px-6`}>
                       <div className="flex items-center min-w-0 flex-1">
                         <div className="flex-shrink-0">
-                          <Package className="h-6 w-6 text-green-600" />
+                          <Package className={`${viewSize === 'small' ? 'h-4 w-4' : viewSize === 'large' ? 'h-8 w-8' : 'h-6 w-6'} text-green-600`} />
                         </div>
-                        <div className="min-w-0 flex-1 px-4">
+                        <div className={`min-w-0 flex-1 ${viewSize === 'small' ? 'px-2' : viewSize === 'large' ? 'px-6' : 'px-4'}`}>
                           <div>
-                            <p className="text-sm font-medium text-green-600 truncate">{container.name}</p>
-                            <p className="text-sm text-gray-500 flex items-center">
+                            <p className={`${textSizes.heading} font-medium text-green-600 truncate`}>{container.name}</p>
+                            <p className={`${textSizes.subtext} text-gray-500 flex items-center`}>
                               <MapPin className="h-3 w-3 mr-1" />
                               {container.zone?.name || 'Unknown Zone'}
                             </p>

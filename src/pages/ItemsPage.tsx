@@ -4,6 +4,7 @@ import { supabase, Container, Zone } from '../lib/supabase'
 import { Layers, Plus, Edit, Trash2, Package, MapPin, LayoutGrid, List } from 'lucide-react'
 
 type ViewMode = 'card' | 'list'
+type ViewSize = 'small' | 'medium' | 'large'
 
 interface ItemWithDetails {
   id: string
@@ -45,11 +46,44 @@ export const ItemsPage: React.FC = () => {
     const saved = localStorage.getItem('items-view-mode')
     return (saved as ViewMode) || 'list'
   })
+  const [viewSize, setViewSize] = useState<ViewSize>(() => {
+    const saved = localStorage.getItem('items-view-size')
+    return (saved as ViewSize) || 'medium'
+  })
 
   const toggleViewMode = (mode: ViewMode) => {
     setViewMode(mode)
     localStorage.setItem('items-view-mode', mode)
   }
+
+  const changeViewSize = (size: ViewSize) => {
+    setViewSize(size)
+    localStorage.setItem('items-view-size', size)
+  }
+
+  const getCardGridClasses = () => {
+    switch (viewSize) {
+      case 'small':
+        return 'grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4'
+      case 'large':
+        return 'grid grid-cols-1 md:grid-cols-2 gap-6'
+      default:
+        return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+    }
+  }
+
+  const getTextSizeClasses = () => {
+    switch (viewSize) {
+      case 'small':
+        return { heading: 'text-sm', subtext: 'text-xs' }
+      case 'large':
+        return { heading: 'text-xl', subtext: 'text-base' }
+      default:
+        return { heading: 'text-lg', subtext: 'text-sm' }
+    }
+  }
+
+  const textSizes = getTextSizeClasses()
 
   useEffect(() => {
     fetchItems()
@@ -194,6 +228,42 @@ export const ItemsPage: React.FC = () => {
               <List className="h-4 w-4" />
             </button>
           </div>
+          {/* Size Toggle */}
+          <div className="inline-flex rounded-md shadow-sm" role="group">
+            <button
+              type="button"
+              onClick={() => changeViewSize('small')}
+              className={`inline-flex items-center px-3 py-2 text-xs font-medium rounded-l-md border ${
+                viewSize === 'small'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              S
+            </button>
+            <button
+              type="button"
+              onClick={() => changeViewSize('medium')}
+              className={`inline-flex items-center px-3 py-2 text-sm font-medium border-t border-b ${
+                viewSize === 'medium'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              M
+            </button>
+            <button
+              type="button"
+              onClick={() => changeViewSize('large')}
+              className={`inline-flex items-center px-3 py-2 text-base font-medium rounded-r-md border-t border-r border-b ${
+                viewSize === 'large'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              L
+            </button>
+          </div>
           <Link
             to="/items/new"
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -229,22 +299,22 @@ export const ItemsPage: React.FC = () => {
 
       {filteredItems.length > 0 ? (
         viewMode === 'card' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={getCardGridClasses()}>
           {filteredItems.map((item) => (
             <div key={item.id} className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200">
               <Link 
                 to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
-                className="block p-6 hover:bg-gray-50 transition-colors duration-200"
+                className={`block ${viewSize === 'small' ? 'p-3' : viewSize === 'large' ? 'p-8' : 'p-6'} hover:bg-gray-50 transition-colors duration-200`}
               >
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <Layers className="h-6 w-6 text-purple-600" />
+                    <Layers className={`${viewSize === 'small' ? 'h-4 w-4' : viewSize === 'large' ? 'h-8 w-8' : 'h-6 w-6'} text-purple-600`} />
                   </div>
-                  <div className="ml-4 flex-1">
-                    <h3 className="text-lg font-medium text-gray-900">
+                  <div className={`${viewSize === 'small' ? 'ml-2' : viewSize === 'large' ? 'ml-6' : 'ml-4'} flex-1`}>
+                    <h3 className={`${textSizes.heading} font-medium text-gray-900`}>
                       {item.item_type === 'card' ? item.player : item.title}
                     </h3>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className={`mt-1 ${textSizes.subtext} text-gray-500`}>
                       {item.item_type === 'card' 
                         ? `${item.manufacturer} ${item.sport} ${item.year}`
                         : `${item.publisher} #${item.issue} (${item.year})`
@@ -322,17 +392,17 @@ export const ItemsPage: React.FC = () => {
                     to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
                     className="block"
                   >
-                    <div className="px-4 py-4 flex items-center justify-between sm:px-6">
+                    <div className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-6 py-6' : 'px-4 py-4'} flex items-center justify-between sm:px-6`}>
                       <div className="flex items-center min-w-0 flex-1">
                         <div className="flex-shrink-0">
-                          <Layers className="h-6 w-6 text-purple-600" />
+                          <Layers className={`${viewSize === 'small' ? 'h-4 w-4' : viewSize === 'large' ? 'h-8 w-8' : 'h-6 w-6'} text-purple-600`} />
                         </div>
-                        <div className="min-w-0 flex-1 px-4">
+                        <div className={`min-w-0 flex-1 ${viewSize === 'small' ? 'px-2' : viewSize === 'large' ? 'px-6' : 'px-4'}`}>
                           <div>
-                            <p className="text-sm font-medium text-purple-600 truncate">
+                            <p className={`${textSizes.heading} font-medium text-purple-600 truncate`}>
                               {item.item_type === 'card' ? item.player : item.title}
                             </p>
-                            <p className="text-sm text-gray-500">
+                            <p className={`${textSizes.subtext} text-gray-500`}>
                               {item.item_type === 'card' 
                                 ? `${item.manufacturer} ${item.sport} ${item.year}`
                                 : `${item.publisher} #${item.issue} (${item.year})`

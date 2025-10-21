@@ -4,6 +4,7 @@ import { supabase, Zone } from '../lib/supabase'
 import { MapPin, Plus, Edit, Trash2, LayoutGrid, List } from 'lucide-react'
 
 type ViewMode = 'card' | 'list'
+type ViewSize = 'small' | 'medium' | 'large'
 
 export const ZonesPage: React.FC = () => {
   const [zones, setZones] = useState<Zone[]>([])
@@ -12,11 +13,46 @@ export const ZonesPage: React.FC = () => {
     const saved = localStorage.getItem('zones-view-mode')
     return (saved as ViewMode) || 'list'
   })
+  const [viewSize, setViewSize] = useState<ViewSize>(() => {
+    const saved = localStorage.getItem('zones-view-size')
+    return (saved as ViewSize) || 'medium'
+  })
 
   const toggleViewMode = (mode: ViewMode) => {
     setViewMode(mode)
     localStorage.setItem('zones-view-mode', mode)
   }
+
+  const changeViewSize = (size: ViewSize) => {
+    setViewSize(size)
+    localStorage.setItem('zones-view-size', size)
+  }
+
+  // Get grid classes based on size
+  const getCardGridClasses = () => {
+    switch (viewSize) {
+      case 'small':
+        return 'grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4'
+      case 'large':
+        return 'grid grid-cols-1 md:grid-cols-2 gap-6'
+      default: // medium
+        return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+    }
+  }
+
+  // Get text size classes
+  const getTextSizeClasses = () => {
+    switch (viewSize) {
+      case 'small':
+        return { heading: 'text-sm', subtext: 'text-xs' }
+      case 'large':
+        return { heading: 'text-xl', subtext: 'text-base' }
+      default: // medium
+        return { heading: 'text-lg', subtext: 'text-sm' }
+    }
+  }
+
+  const textSizes = getTextSizeClasses()
 
   useEffect(() => {
     fetchZones()
@@ -96,6 +132,42 @@ export const ZonesPage: React.FC = () => {
               <List className="h-4 w-4" />
             </button>
           </div>
+          {/* Size Toggle */}
+          <div className="inline-flex rounded-md shadow-sm" role="group">
+            <button
+              type="button"
+              onClick={() => changeViewSize('small')}
+              className={`inline-flex items-center px-3 py-2 text-xs font-medium rounded-l-md border ${
+                viewSize === 'small'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              S
+            </button>
+            <button
+              type="button"
+              onClick={() => changeViewSize('medium')}
+              className={`inline-flex items-center px-3 py-2 text-sm font-medium border-t border-b ${
+                viewSize === 'medium'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              M
+            </button>
+            <button
+              type="button"
+              onClick={() => changeViewSize('large')}
+              className={`inline-flex items-center px-3 py-2 text-base font-medium rounded-r-md border-t border-r border-b ${
+                viewSize === 'large'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              L
+            </button>
+          </div>
           <Link
             to="/zones/heatmap"
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -115,19 +187,19 @@ export const ZonesPage: React.FC = () => {
 
       {zones.length > 0 ? (
         viewMode === 'card' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={getCardGridClasses()}>
             {zones.map((zone) => (
               <div key={zone.id} className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200">
                 <Link 
                   to={`/zones/${zone.id}`}
-                  className="block p-6 hover:bg-gray-50 transition-colors duration-200"
+                  className={`block ${viewSize === 'small' ? 'p-3' : viewSize === 'large' ? 'p-8' : 'p-6'} hover:bg-gray-50 transition-colors duration-200`}
                 >
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
-                      <MapPin className="h-6 w-6 text-blue-600" />
+                      <MapPin className={`${viewSize === 'small' ? 'h-4 w-4' : viewSize === 'large' ? 'h-8 w-8' : 'h-6 w-6'} text-blue-600`} />
                     </div>
-                    <div className="ml-4 flex-1">
-                      <h3 className="text-lg font-medium text-gray-900">{zone.name}</h3>
+                    <div className={`${viewSize === 'small' ? 'ml-2' : viewSize === 'large' ? 'ml-6' : 'ml-4'} flex-1`}>
+                      <h3 className={`${textSizes.heading} font-medium text-gray-900`}>{zone.name}</h3>
                     </div>
                   </div>
                 </Link>
@@ -163,15 +235,15 @@ export const ZonesPage: React.FC = () => {
               {zones.map((zone) => (
                 <li key={zone.id} className="hover:bg-gray-50">
                   <Link to={`/zones/${zone.id}`} className="block">
-                    <div className="px-4 py-4 flex items-center justify-between sm:px-6">
+                    <div className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-6 py-6' : 'px-4 py-4'} flex items-center justify-between sm:px-6`}>
                       <div className="flex items-center min-w-0 flex-1">
                         <div className="flex-shrink-0">
-                          <MapPin className="h-6 w-6 text-blue-600" />
+                          <MapPin className={`${viewSize === 'small' ? 'h-4 w-4' : viewSize === 'large' ? 'h-8 w-8' : 'h-6 w-6'} text-blue-600`} />
                         </div>
-                        <div className="min-w-0 flex-1 px-4">
+                        <div className={`min-w-0 flex-1 ${viewSize === 'small' ? 'px-2' : viewSize === 'large' ? 'px-6' : 'px-4'}`}>
                           <div>
-                            <p className="text-sm font-medium text-blue-600 truncate">{zone.name}</p>
-                            <p className="text-sm text-gray-500">Created {new Date(zone.created_at).toLocaleDateString()}</p>
+                            <p className={`${textSizes.heading} font-medium text-blue-600 truncate`}>{zone.name}</p>
+                            <p className={`${textSizes.subtext} text-gray-500`}>Created {new Date(zone.created_at).toLocaleDateString()}</p>
                           </div>
                         </div>
                       </div>
