@@ -17,9 +17,10 @@ interface ItemWithDetails {
   condition: string | null
   quantity: number
   item_type: 'card' | 'comic'
+  description: string | null
   // Card fields
   player?: string
-  team?: string
+  team: string | null
   manufacturer?: string
   sport?: string
   year?: number

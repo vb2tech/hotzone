@@ -37,7 +37,7 @@ export interface BaseItem {
 
 export interface Card extends BaseItem {
   player: string
-  team: string
+  team: string | null
   manufacturer: string
   sport: string
   year: number
@@ -46,6 +46,7 @@ export interface Card extends BaseItem {
   is_rookie: boolean
   price: number | null
   cost: number | null
+  description: string | null
 }
 
 export interface Comic extends BaseItem {
@@ -55,6 +56,7 @@ export interface Comic extends BaseItem {
   year: number
   price: number | null
   cost: number | null
+  description: string | null
 }
 
 // Union type for items

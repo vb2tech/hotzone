@@ -209,6 +209,12 @@ export const ComicViewPage: React.FC = () => {
                 <dd className="mt-1 text-sm text-gray-900">{comic.condition}</dd>
               </div>
             )}
+            {comic.description && (
+              <div className="sm:col-span-2">
+                <dt className="text-sm font-medium text-gray-500">Description</dt>
+                <dd className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{comic.description}</dd>
+              </div>
+            )}
           </dl>
         </div>
       </div>

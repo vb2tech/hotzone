@@ -20,6 +20,7 @@ export const ItemForm: React.FC = () => {
     quantity: 1,
     price: null as number | null,
     cost: null as number | null,
+    description: '',
     // Card specific fields
     player: '',
     team: '',
@@ -88,6 +89,7 @@ export const ItemForm: React.FC = () => {
           quantity: cardData.quantity || 1,
           price: cardData.price || null,
           cost: cardData.cost || null,
+          description: cardData.description || '',
           // Card specific fields
           player: cardData.player || '',
           team: cardData.team || '',
@@ -123,6 +125,7 @@ export const ItemForm: React.FC = () => {
           quantity: comicData.quantity || 1,
           price: comicData.price || null,
           cost: comicData.cost || null,
+          description: comicData.description || '',
           // Card specific fields (defaults)
           player: '',
           team: '',
@@ -167,14 +170,15 @@ export const ItemForm: React.FC = () => {
         condition: formData.condition,
         quantity: formData.quantity,
         price: formData.price,
-        cost: formData.cost
+        cost: formData.cost,
+        description: formData.description || null
       }
 
       if (formData.item_type === 'card') {
         const cardData = {
           ...baseData,
           player: formData.player,
-          team: formData.team,
+          team: formData.team || null,
           manufacturer: formData.manufacturer,
           sport: formData.sport,
           year: formData.card_year,
@@ -461,6 +465,22 @@ export const ItemForm: React.FC = () => {
               </div>
             </div>
 
+            {/* Description field */}
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                Description
+              </label>
+              <textarea
+                name="description"
+                id="description"
+                rows={3}
+                value={formData.description}
+                onChange={handleChange}
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Optional notes or description"
+              />
+            </div>
+
             {/* Card-specific fields */}
             {formData.item_type === 'card' && (
               <div className="space-y-4 border-t pt-6">
@@ -483,13 +503,12 @@ export const ItemForm: React.FC = () => {
                   </div>
                   <div>
                     <label htmlFor="team" className="block text-sm font-medium text-gray-700">
-                      Team *
+                      Team
                     </label>
                     <input
                       type="text"
                       name="team"
                       id="team"
-                      required
                       value={formData.team}
                       onChange={handleChange}
                       className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"

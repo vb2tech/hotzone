@@ -17,8 +17,9 @@ interface DashboardStats {
     condition: string | null
     quantity: number
     item_type: 'card' | 'comic'
+    description: string | null
     player?: string
-    team?: string
+    team: string | null
     title?: string
     manufacturer?: string
     sport?: string

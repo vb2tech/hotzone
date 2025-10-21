@@ -169,10 +169,12 @@ export const CardViewPage: React.FC = () => {
               <dt className="text-sm font-medium text-gray-500">Player</dt>
               <dd className="mt-1 text-sm text-gray-900">{card.player}</dd>
             </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Team</dt>
-              <dd className="mt-1 text-sm text-gray-900">{card.team}</dd>
-            </div>
+            {card.team && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Team</dt>
+                <dd className="mt-1 text-sm text-gray-900">{card.team}</dd>
+              </div>
+            )}
             <div>
               <dt className="text-sm font-medium text-gray-500">Manufacturer</dt>
               <dd className="mt-1 text-sm text-gray-900">{card.manufacturer}</dd>
@@ -229,6 +231,12 @@ export const CardViewPage: React.FC = () => {
               <div>
                 <dt className="text-sm font-medium text-gray-500">Condition</dt>
                 <dd className="mt-1 text-sm text-gray-900">{card.condition}</dd>
+              </div>
+            )}
+            {card.description && (
+              <div className="sm:col-span-2">
+                <dt className="text-sm font-medium text-gray-500">Description</dt>
+                <dd className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{card.description}</dd>
               </div>
             )}
           </dl>
