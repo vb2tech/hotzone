@@ -234,19 +234,18 @@ export const ZonesPage: React.FC = () => {
             <ul className="divide-y divide-gray-200">
               {zones.map((zone) => (
                 <li key={zone.id} className="hover:bg-gray-50">
-                  <Link to={`/zones/${zone.id}`} className="block">
-                    <div className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-6 py-6' : 'px-4 py-4'} flex items-center justify-between sm:px-6`}>
-                      <div className="flex items-center min-w-0 flex-1">
-                        <div className="flex-shrink-0">
-                          <MapPin className={`${viewSize === 'small' ? 'h-4 w-4' : viewSize === 'large' ? 'h-8 w-8' : 'h-6 w-6'} text-blue-600`} />
-                        </div>
-                        <div className={`min-w-0 flex-1 ${viewSize === 'small' ? 'px-2' : viewSize === 'large' ? 'px-6' : 'px-4'}`}>
-                          <div>
-                            <p className={`${textSizes.heading} font-medium text-blue-600 truncate`}>{zone.name}</p>
-                            <p className={`${textSizes.subtext} text-gray-500`}>Created {new Date(zone.created_at).toLocaleDateString()}</p>
-                          </div>
+                  <div className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-6 py-6' : 'px-4 py-4'} flex items-center justify-between sm:px-6`}>
+                    <Link to={`/zones/${zone.id}`} className="flex items-center min-w-0 flex-1">
+                      <div className="flex-shrink-0">
+                        <MapPin className={`${viewSize === 'small' ? 'h-4 w-4' : viewSize === 'large' ? 'h-8 w-8' : 'h-6 w-6'} text-blue-600`} />
+                      </div>
+                      <div className={`min-w-0 flex-1 ${viewSize === 'small' ? 'px-2' : viewSize === 'large' ? 'px-6' : 'px-4'}`}>
+                        <div>
+                          <p className={`${textSizes.heading} font-medium text-blue-600 truncate`}>{zone.name}</p>
+                          <p className={`${textSizes.subtext} text-gray-500`}>Created {new Date(zone.created_at).toLocaleDateString()}</p>
                         </div>
                       </div>
+                    </Link>
                       <div className="flex space-x-2">
                         <Link
                           to={`/zones/${zone.id}/edit`}
@@ -266,8 +265,7 @@ export const ZonesPage: React.FC = () => {
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
-                    </div>
-                  </Link>
+                  </div>
                 </li>
               ))}
             </ul>

@@ -1,9 +1,24 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || 'your-supabase-url'
 const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || 'your-supabase-anon-key'
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Singleton pattern to prevent multiple instances
+let supabaseInstance: SupabaseClient | null = null
+
+const getSupabaseClient = () => {
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      }
+    })
+  }
+  return supabaseInstance
+}
+
+export const supabase = getSupabaseClient()
 
 // Database types based on your inventory management schema
 export interface Zone {

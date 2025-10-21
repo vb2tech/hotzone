@@ -388,12 +388,11 @@ export const ItemsPage: React.FC = () => {
             <ul className="divide-y divide-gray-200">
               {filteredItems.map((item) => (
                 <li key={item.id} className="hover:bg-gray-50">
-                  <Link 
-                    to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
-                    className="block"
-                  >
-                    <div className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-6 py-6' : 'px-4 py-4'} flex items-center justify-between sm:px-6`}>
-                      <div className="flex items-center min-w-0 flex-1">
+                  <div className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-6 py-6' : 'px-4 py-4'} flex items-center justify-between sm:px-6`}>
+                    <Link 
+                      to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
+                      className="flex items-center min-w-0 flex-1"
+                    >
                         <div className="flex-shrink-0">
                           <Layers className={`${viewSize === 'small' ? 'h-4 w-4' : viewSize === 'large' ? 'h-8 w-8' : 'h-6 w-6'} text-purple-600`} />
                         </div>
@@ -441,7 +440,7 @@ export const ItemsPage: React.FC = () => {
                             </div>
                           </div>
                         </div>
-                      </div>
+                    </Link>
                       <div className="flex space-x-2">
                         <Link
                           to={`/items/${item.id}/edit`}
@@ -461,8 +460,7 @@ export const ItemsPage: React.FC = () => {
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
-                    </div>
-                  </Link>
+                  </div>
                 </li>
               ))}
             </ul>
