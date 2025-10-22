@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, Container, Zone } from '../lib/supabase'
-import { Layers, Plus, Edit, Trash2, Package, MapPin } from 'lucide-react'
+import { Layers, Plus } from 'lucide-react'
 
 type ViewSize = 'small' | 'medium' | 'large'
 

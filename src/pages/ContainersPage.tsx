@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, Container, Zone } from '../lib/supabase'
-import { Package, Plus, Edit, Trash2, MapPin, Flame, QrCode, Printer, X } from 'lucide-react'
+import { Package, Plus, Flame, Printer, X } from 'lucide-react'
 import QRCodeLib from 'qrcode'
 
 type ViewSize = 'small' | 'medium' | 'large'
