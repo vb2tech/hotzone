@@ -384,86 +384,120 @@ export const ItemsPage: React.FC = () => {
           ))}
         </div>
         ) : (
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
-            <ul className="divide-y divide-gray-200">
-              {filteredItems.map((item) => (
-                <li key={item.id} className="hover:bg-gray-50">
-                  <div className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-6 py-6' : 'px-4 py-4'} flex items-center justify-between sm:px-6`}>
-                    <Link 
-                      to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
-                      className="flex items-center min-w-0 flex-1"
-                    >
-                        <div className="flex-shrink-0">
-                          <Layers className={`${viewSize === 'small' ? 'h-4 w-4' : viewSize === 'large' ? 'h-8 w-8' : 'h-6 w-6'} text-purple-600`} />
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
+                      Type
+                    </th>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
+                      Name
+                    </th>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
+                      Details
+                    </th>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
+                      Container
+                    </th>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
+                      Zone
+                    </th>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
+                      Qty
+                    </th>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
+                      Grade
+                    </th>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
+                      Price
+                    </th>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
+                      Cost
+                    </th>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-right font-medium text-gray-500 uppercase tracking-wider`}>
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredItems.map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full ${viewSize === 'small' ? 'text-xs' : viewSize === 'large' ? 'text-base' : 'text-sm'} font-medium ${
+                          item.item_type === 'card' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {item.item_type}
+                        </span>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <Link 
+                          to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
+                          className={`${textSizes.heading} font-medium text-purple-600 hover:text-purple-900`}
+                        >
+                          {item.item_type === 'card' ? item.player : item.title}
+                        </Link>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'}`}>
+                        <div className={`${textSizes.subtext} text-gray-900`}>
+                          {item.item_type === 'card' 
+                            ? `${item.manufacturer} ${item.sport} ${item.year}`
+                            : `${item.publisher} #${item.issue} (${item.year})`
+                          }
                         </div>
-                        <div className={`min-w-0 flex-1 ${viewSize === 'small' ? 'px-2' : viewSize === 'large' ? 'px-6' : 'px-4'}`}>
-                          <div>
-                            <p className={`${textSizes.heading} font-medium text-purple-600 truncate`}>
-                              {item.item_type === 'card' ? item.player : item.title}
-                            </p>
-                            <p className={`${textSizes.subtext} text-gray-500`}>
-                              {item.item_type === 'card' 
-                                ? `${item.manufacturer} ${item.sport} ${item.year}`
-                                : `${item.publisher} #${item.issue} (${item.year})`
-                              }
-                            </p>
-                            <div className="flex items-center space-x-4 mt-1">
-                              <span className="text-xs text-gray-500 flex items-center">
-                                <Package className="h-3 w-3 mr-1" />
-                                {item.container?.name || 'No Container'}
-                              </span>
-                              <span className="text-xs text-gray-500 flex items-center">
-                                <MapPin className="h-3 w-3 mr-1" />
-                                {item.container?.zone?.name || 'Unknown Zone'}
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-3 mt-2">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                item.item_type === 'card' 
-                                  ? 'bg-blue-100 text-blue-800' 
-                                  : 'bg-green-100 text-green-800'
-                              }`}>
-                                {item.item_type}
-                              </span>
-                              <span className="text-xs text-gray-500">Qty: {item.quantity}</span>
-                              {item.grade && <span className="text-xs text-gray-500">Grade: {item.grade}</span>}
-                              {item.price && (
-                                <span className="text-xs font-medium text-green-600">
-                                  ${item.price.toFixed(2)}
-                                </span>
-                              )}
-                              {item.cost && (
-                                <span className="text-xs font-medium text-blue-600">
-                                  Cost: ${item.cost.toFixed(2)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <div className={`${textSizes.subtext} text-gray-500`}>
+                          {item.container?.name || 'No Container'}
                         </div>
-                    </Link>
-                      <div className="flex space-x-2">
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <div className={`${textSizes.subtext} text-gray-500`}>
+                          {item.container?.zone?.name || 'Unknown Zone'}
+                        </div>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <div className={`${textSizes.subtext} text-gray-900`}>
+                          {item.quantity}
+                        </div>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <div className={`${textSizes.subtext} text-gray-900`}>
+                          {item.grade || '-'}
+                        </div>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <div className={`${textSizes.subtext} font-medium text-green-600`}>
+                          {item.price ? `$${item.price.toFixed(2)}` : '-'}
+                        </div>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <div className={`${textSizes.subtext} font-medium text-blue-600`}>
+                          {item.cost ? `$${item.cost.toFixed(2)}` : '-'}
+                        </div>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap text-right ${viewSize === 'small' ? 'text-xs' : viewSize === 'large' ? 'text-base' : 'text-sm'} font-medium`}>
                         <Link
                           to={`/items/${item.id}/edit`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                          className="text-indigo-600 hover:text-indigo-900 mr-4"
                         >
-                          <Edit className="h-4 w-4" />
+                          Edit
                         </Link>
                         <button
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            deleteItem(item.id)
-                          }}
-                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200"
+                          onClick={() => deleteItem(item.id)}
+                          className="text-red-600 hover:text-red-900"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          Delete
                         </button>
-                      </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )
       ) : (
