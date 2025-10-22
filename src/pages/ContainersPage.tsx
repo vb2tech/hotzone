@@ -336,58 +336,64 @@ export const ContainersPage: React.FC = () => {
           ))}
         </div>
         ) : (
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
-            <ul className="divide-y divide-gray-200">
-              {containers.map((container) => (
-                <li key={container.id} className="hover:bg-gray-50">
-                  <div className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-6 py-6' : 'px-4 py-4'} flex items-center justify-between sm:px-6`}>
-                    <Link to={`/containers/${container.id}`} className="flex items-center min-w-0 flex-1">
-                      <div className="flex-shrink-0">
-                        <Package className={`${viewSize === 'small' ? 'h-4 w-4' : viewSize === 'large' ? 'h-8 w-8' : 'h-6 w-6'} text-green-600`} />
-                      </div>
-                      <div className={`min-w-0 flex-1 ${viewSize === 'small' ? 'px-2' : viewSize === 'large' ? 'px-6' : 'px-4'}`}>
-                        <div>
-                          <p className={`${textSizes.heading} font-medium text-green-600 truncate`}>{container.name}</p>
-                          <p className={`${textSizes.subtext} text-gray-500 flex items-center`}>
-                            <MapPin className="h-3 w-3 mr-1" />
-                            {container.zone?.name || 'Unknown Zone'}
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            generateQRCode(container)
-                          }}
-                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
+                      Name
+                    </th>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
+                      Zone
+                    </th>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-right font-medium text-gray-500 uppercase tracking-wider`}>
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {containers.map((container) => (
+                    <tr key={container.id} className="hover:bg-gray-50">
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <Link 
+                          to={`/containers/${container.id}`}
+                          className={`${textSizes.heading} font-medium text-green-600 hover:text-green-900`}
                         >
-                          <QrCode className="h-4 w-4" />
+                          {container.name}
+                        </Link>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <div className={`${textSizes.subtext} text-gray-500`}>
+                          {container.zone?.name || 'Unknown Zone'}
+                        </div>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap text-right ${viewSize === 'small' ? 'text-xs' : viewSize === 'large' ? 'text-base' : 'text-sm'} font-medium`}>
+                        <button
+                          onClick={() => generateQRCode(container)}
+                          className="text-gray-600 hover:text-gray-900 mr-4"
+                          title="Generate QR Code"
+                        >
+                          QR
                         </button>
                         <Link
                           to={`/containers/${container.id}/edit`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                          className="text-indigo-600 hover:text-indigo-900 mr-4"
                         >
-                          <Edit className="h-4 w-4" />
+                          Edit
                         </Link>
                         <button
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            deleteContainer(container.id)
-                          }}
-                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200"
+                          onClick={() => deleteContainer(container.id)}
+                          className="text-red-600 hover:text-red-900"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          Delete
                         </button>
-                      </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )
       ) : (
