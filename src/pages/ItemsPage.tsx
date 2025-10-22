@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, Container, Zone } from '../lib/supabase'
-import { Layers, Plus, Edit, Trash2, Package, MapPin, LayoutGrid, List } from 'lucide-react'
+import { Layers, Plus, Edit, Trash2, Package, MapPin } from 'lucide-react'
 
-type ViewMode = 'card' | 'list'
 type ViewSize = 'small' | 'medium' | 'large'
 
 interface ItemWithDetails {
@@ -42,34 +41,14 @@ export const ItemsPage: React.FC = () => {
   const [items, setItems] = useState<ItemWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'card' | 'comic'>('all')
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const saved = localStorage.getItem('items-view-mode')
-    return (saved as ViewMode) || 'list'
-  })
   const [viewSize, setViewSize] = useState<ViewSize>(() => {
     const saved = localStorage.getItem('items-view-size')
     return (saved as ViewSize) || 'medium'
   })
 
-  const toggleViewMode = (mode: ViewMode) => {
-    setViewMode(mode)
-    localStorage.setItem('items-view-mode', mode)
-  }
-
   const changeViewSize = (size: ViewSize) => {
     setViewSize(size)
     localStorage.setItem('items-view-size', size)
-  }
-
-  const getCardGridClasses = () => {
-    switch (viewSize) {
-      case 'small':
-        return 'grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4'
-      case 'large':
-        return 'grid grid-cols-1 md:grid-cols-2 gap-6'
-      default:
-        return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-    }
   }
 
   const getTextSizeClasses = () => {
@@ -203,31 +182,6 @@ export const ItemsPage: React.FC = () => {
           <p className="mt-2 text-gray-600">Manage your inventory items</p>
         </div>
         <div className="flex space-x-3">
-          {/* View Toggle */}
-          <div className="inline-flex rounded-md shadow-sm" role="group">
-            <button
-              type="button"
-              onClick={() => toggleViewMode('card')}
-              className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-l-md border ${
-                viewMode === 'card'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => toggleViewMode('list')}
-              className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-r-md border-t border-r border-b ${
-                viewMode === 'list'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              <List className="h-4 w-4" />
-            </button>
-          </div>
           {/* Size Toggle */}
           <div className="inline-flex rounded-md shadow-sm" role="group">
             <button
@@ -298,93 +252,7 @@ export const ItemsPage: React.FC = () => {
       </div>
 
       {filteredItems.length > 0 ? (
-        viewMode === 'card' ? (
-        <div className={getCardGridClasses()}>
-          {filteredItems.map((item) => (
-            <div key={item.id} className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200">
-              <Link 
-                to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
-                className={`block ${viewSize === 'small' ? 'p-3' : viewSize === 'large' ? 'p-8' : 'p-6'} hover:bg-gray-50 transition-colors duration-200`}
-              >
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Layers className={`${viewSize === 'small' ? 'h-4 w-4' : viewSize === 'large' ? 'h-8 w-8' : 'h-6 w-6'} text-purple-600`} />
-                  </div>
-                  <div className={`${viewSize === 'small' ? 'ml-2' : viewSize === 'large' ? 'ml-6' : 'ml-4'} flex-1`}>
-                    <h3 className={`${textSizes.heading} font-medium text-gray-900`}>
-                      {item.item_type === 'card' ? item.player : item.title}
-                    </h3>
-                    <p className={`mt-1 ${textSizes.subtext} text-gray-500`}>
-                      {item.item_type === 'card' 
-                        ? `${item.manufacturer} ${item.sport} ${item.year}`
-                        : `${item.publisher} #${item.issue} (${item.year})`
-                      }
-                    </p>
-                    <div className="mt-2 flex items-center text-sm text-gray-500">
-                      <Package className="h-4 w-4 mr-1" />
-                      {item.container?.name || 'No Container'}
-                    </div>
-                    <div className="mt-1 flex items-center text-sm text-gray-500">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      {item.container?.zone?.name || 'Unknown Zone'}
-                    </div>
-                    <div className="mt-2 flex items-center space-x-2">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        item.item_type === 'card' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-green-100 text-green-800'
-                      }`}>
-                        {item.item_type}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        Qty: {item.quantity}
-                      </span>
-                      {item.grade && (
-                        <span className="text-xs text-gray-500">
-                          Grade: {item.grade}
-                        </span>
-                      )}
-                    </div>
-                    {(item.price || item.cost) && (
-                      <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                        {item.price && (
-                          <span className="font-medium text-green-600">
-                            Price: ${item.price.toFixed(2)}
-                          </span>
-                        )}
-                        {item.cost && (
-                          <span className="font-medium text-blue-600">
-                            Cost: ${item.cost.toFixed(2)}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </Link>
-              <div className="px-6 pb-4">
-                <div className="flex space-x-3">
-                  <Link
-                    to={`/items/${item.id}/edit`}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Link>
-                  <button
-                    onClick={() => deleteItem(item.id)}
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-        ) : (
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -499,7 +367,6 @@ export const ItemsPage: React.FC = () => {
               </table>
             </div>
           </div>
-        )
       ) : (
         <div className="text-center py-12">
           <Layers className="mx-auto h-12 w-12 text-gray-400" />
