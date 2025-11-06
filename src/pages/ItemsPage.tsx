@@ -267,6 +267,12 @@ export const ItemsPage: React.FC = () => {
                       Details
                     </th>
                     <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
+                      Card #
+                    </th>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
+                      Team
+                    </th>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
                       Container
                     </th>
                     <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
@@ -315,6 +321,21 @@ export const ItemsPage: React.FC = () => {
                             ? `${item.manufacturer} ${item.sport} ${item.year}`
                             : `${item.publisher} #${item.issue} (${item.year})`
                           }
+                        </div>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <div className={`${textSizes.subtext} text-gray-900`}>
+                          {item.item_type === 'card' && item.number 
+                            ? item.number_out_of 
+                              ? `${item.number} / ${item.number_out_of}` 
+                              : item.number
+                            : '-'
+                          }
+                        </div>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <div className={`${textSizes.subtext} text-gray-900`}>
+                          {item.item_type === 'card' && item.team ? item.team : '-'}
                         </div>
                       </td>
                       <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
