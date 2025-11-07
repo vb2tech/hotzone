@@ -187,7 +187,7 @@ export const Dashboard: React.FC = () => {
         <div className="px-4 py-5 sm:p-6">
           <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Items by Name</h3>
           {stats.groupedItems.length > 0 ? (
-            <div className="overflow-x-auto">
+            <div className="overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
