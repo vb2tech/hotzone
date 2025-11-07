@@ -261,25 +261,42 @@ export const ItemForm: React.FC = () => {
     if (!formData.container_id) return false
 
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return false
+
       if (formData.item_type === 'card') {
         // Check for duplicate cards in the same container
-        const { data: existingCards, error } = await supabase
+        // Fetch all cards matching the non-nullable fields, then filter in JavaScript
+        let query = supabase
           .from('cards')
-          .select('id')
+          .select('id, team')
           .eq('container_id', formData.container_id)
-          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .eq('user_id', user.id)
           .eq('player', formData.player)
-          .eq('team', formData.team)
           .eq('manufacturer', formData.manufacturer)
           .eq('sport', formData.sport)
           .eq('year', formData.card_year)
 
+        // If editing, exclude the current item from the check
+        if (isEdit && id) {
+          query = query.neq('id', id)
+        }
+
+        const { data: existingCards, error } = await query
+
         if (error) throw error
 
-        // If editing, exclude the current item from the check
-        const filteredCards = isEdit && id 
-          ? existingCards?.filter(card => card.id !== id) || []
-          : existingCards || []
+        // Filter in JavaScript to handle team field (can be null or empty string)
+        // Normalize both form value and database value for comparison
+        const formTeamValue = (formData.team?.trim() || null)
+        const filteredCards = existingCards?.filter(card => {
+          // If editing, make sure we exclude the current item (double check)
+          if (isEdit && id && card.id === id) return false
+          
+          // Compare team values (both normalized to null if empty)
+          const cardTeamValue = (card.team?.trim() || null)
+          return formTeamValue === cardTeamValue
+        }) || []
 
         if (filteredCards.length > 0) {
           setDuplicateError('A card with the same player, team, manufacturer, sport, and year already exists in this container.')
@@ -287,24 +304,26 @@ export const ItemForm: React.FC = () => {
         }
       } else {
         // Check for duplicate comics in the same container
-        const { data: existingComics, error } = await supabase
+        let query = supabase
           .from('comics')
           .select('id')
           .eq('container_id', formData.container_id)
-          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .eq('user_id', user.id)
           .eq('title', formData.title)
           .eq('publisher', formData.publisher)
           .eq('issue', formData.issue)
           .eq('year', formData.comic_year)
 
+        // If editing, exclude the current item from the check
+        if (isEdit && id) {
+          query = query.neq('id', id)
+        }
+
+        const { data: existingComics, error } = await query
+
         if (error) throw error
 
-        // If editing, exclude the current item from the check
-        const filteredComics = isEdit && id 
-          ? existingComics?.filter(comic => comic.id !== id) || []
-          : existingComics || []
-
-        if (filteredComics.length > 0) {
+        if (existingComics && existingComics.length > 0) {
           setDuplicateError('A comic with the same title, publisher, issue, and year already exists in this container.')
           return true
         }
