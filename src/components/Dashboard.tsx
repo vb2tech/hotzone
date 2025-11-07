@@ -1,91 +1,117 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { MapPin, Package, Layers, TrendingUp } from 'lucide-react'
+import { MapPin, Package, Layers } from 'lucide-react'
+
+interface GroupedItem {
+  name: string
+  totalCount: number
+  totalCost: number
+  totalValue: number
+  itemType: 'card' | 'comic' | 'mixed'
+}
 
 interface DashboardStats {
   zones: number
   containers: number
   items: number
-  recentItems: {
-    id: string
-    user_id: string
-    container_id: string
-    created_at: string
-    updated_at: string
-    grade: number | null
-    condition: string | null
-    quantity: number
-    item_type: 'card' | 'comic'
-    description: string | null
-    player?: string
-    team: string | null
-    title?: string
-    manufacturer?: string
-    sport?: string
-    year?: number
-    number?: string
-    number_out_of?: number | null
-    publisher?: string
-    issue?: number
-    price?: number | null
-    cost?: number | null
-  }[]
+  groupedItems: GroupedItem[]
 }
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate()
   const [stats, setStats] = useState<DashboardStats>({
     zones: 0,
     containers: 0,
     items: 0,
-    recentItems: []
+    groupedItems: []
   })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-  const fetchStats = async () => {
-    try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+    const fetchStats = async () => {
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
 
-      // Fetch counts from zones, containers, cards, and comics for current user only
-      const [zonesResult, containersResult, cardsResult, comicsResult, recentCardsResult, recentComicsResult] = await Promise.all([
-        supabase.from('zones').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('containers').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('cards').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('comics').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('cards').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3),
-        supabase.from('comics').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3)
-      ])
+        // Fetch counts and all items
+        const [zonesResult, containersResult, cardsResult, comicsResult] = await Promise.all([
+          supabase.from('zones').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+          supabase.from('containers').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+          supabase.from('cards').select('*').eq('user_id', user.id),
+          supabase.from('comics').select('*').eq('user_id', user.id)
+        ])
 
-      // Combine recent items
-      const recentCards = recentCardsResult.data?.map(card => ({
-        ...card,
-        item_type: 'card' as const
-      })) || []
-      
-      const recentComics = recentComicsResult.data?.map(comic => ({
-        ...comic,
-        item_type: 'comic' as const
-      })) || []
+        if (cardsResult.error) throw cardsResult.error
+        if (comicsResult.error) throw comicsResult.error
 
-      const allRecentItems = [...recentCards, ...recentComics]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 5)
+        // Group items by name
+        const groupedMap = new Map<string, GroupedItem>()
 
-      setStats({
-        zones: zonesResult.count || 0,
-        containers: containersResult.count || 0,
-        items: (cardsResult.count || 0) + (comicsResult.count || 0),
-        recentItems: allRecentItems
-      })
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error)
-    } finally {
-      setLoading(false)
+        // Process cards
+        cardsResult.data?.forEach(card => {
+          const name = card.player || 'Unknown'
+          const existing = groupedMap.get(name)
+          
+          if (existing) {
+            existing.totalCount += card.quantity || 1
+            existing.totalCost += (card.cost || 0) * (card.quantity || 1)
+            existing.totalValue += (card.price || 0) * (card.quantity || 1)
+            if (existing.itemType === 'comic') {
+              existing.itemType = 'mixed'
+            }
+          } else {
+            groupedMap.set(name, {
+              name,
+              totalCount: card.quantity || 1,
+              totalCost: (card.cost || 0) * (card.quantity || 1),
+              totalValue: (card.price || 0) * (card.quantity || 1),
+              itemType: 'card'
+            })
+          }
+        })
+
+        // Process comics
+        comicsResult.data?.forEach(comic => {
+          const name = comic.title || 'Unknown'
+          const existing = groupedMap.get(name)
+          
+          if (existing) {
+            existing.totalCount += comic.quantity || 1
+            existing.totalCost += (comic.cost || 0) * (comic.quantity || 1)
+            existing.totalValue += (comic.price || 0) * (comic.quantity || 1)
+            if (existing.itemType === 'card') {
+              existing.itemType = 'mixed'
+            }
+          } else {
+            groupedMap.set(name, {
+              name,
+              totalCount: comic.quantity || 1,
+              totalCost: (comic.cost || 0) * (comic.quantity || 1),
+              totalValue: (comic.price || 0) * (comic.quantity || 1),
+              itemType: 'comic'
+            })
+          }
+        })
+
+        // Convert map to array and sort by name
+        const groupedItems = Array.from(groupedMap.values()).sort((a, b) => 
+          a.name.localeCompare(b.name)
+        )
+
+        setStats({
+          zones: zonesResult.count || 0,
+          containers: containersResult.count || 0,
+          items: (cardsResult.data?.length || 0) + (comicsResult.data?.length || 0),
+          groupedItems
+        })
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error)
+      } finally {
+        setLoading(false)
+      }
     }
-  }
 
     fetchStats()
   }, [])
@@ -156,11 +182,11 @@ export const Dashboard: React.FC = () => {
         </Link>
       </div>
 
-      {/* Recent Items Table */}
+      {/* Grouped Items Table */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Recent Items</h3>
-          {stats.recentItems.length > 0 ? (
+          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Items by Name</h3>
+          {stats.groupedItems.length > 0 ? (
             <div className="overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -171,36 +197,46 @@ export const Dashboard: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Type
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Added
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total Count
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total Cost
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total Value
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {stats.recentItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
+                  {stats.groupedItems.map((item, index) => (
+                    <tr 
+                      key={`${item.name}-${index}`} 
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => navigate(`/items/${encodeURIComponent(item.name)}/details`)}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        <Link 
-                          to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
-                          className="text-blue-600 hover:text-blue-700 hover:underline"
-                        >
-                          {item.item_type === 'card' ? item.player : item.title}
-                        </Link>
+                        {item.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          item.item_type === 'card' 
+                          item.itemType === 'card' 
                             ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-green-100 text-green-800'
+                            : item.itemType === 'comic'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-purple-100 text-purple-800'
                         }`}>
-                          {item.item_type}
-                        </span>
-                        <span className="ml-2 text-xs text-gray-400">
-                          Qty: {item.quantity}
+                          {item.itemType}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(item.created_at).toLocaleDateString()}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                        {item.totalCount.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                        ${item.totalCost.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600 text-right">
+                        ${item.totalValue.toFixed(2)}
                       </td>
                     </tr>
                   ))}
@@ -209,7 +245,7 @@ export const Dashboard: React.FC = () => {
             </div>
           ) : (
             <div className="text-center py-6">
-              <TrendingUp className="mx-auto h-12 w-12 text-gray-400" />
+              <Layers className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No items yet</h3>
               <p className="mt-1 text-sm text-gray-500">Start by adding some items to your inventory.</p>
             </div>

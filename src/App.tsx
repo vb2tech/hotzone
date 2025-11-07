@@ -14,6 +14,7 @@ import { ContainerForm } from './pages/ContainerForm'
 import { ContainerViewPage } from './pages/ContainerViewPage'
 import { ItemsPage } from './pages/ItemsPage'
 import { ItemForm } from './pages/ItemForm'
+import { ItemDetailPage } from './pages/ItemDetailPage'
 import { CardViewPage } from './pages/CardViewPage'
 import { ComicViewPage } from './pages/ComicViewPage'
 
@@ -51,6 +52,7 @@ const AppContent: React.FC = () => {
           <Route path="/containers/heatmap" element={<ContainerHeatMap />} />
           <Route path="/items" element={<ItemsPage />} />
           <Route path="/items/new" element={<ItemForm />} />
+          <Route path="/items/:name/details" element={<ItemDetailPage />} />
           <Route path="/items/:id/edit" element={<ItemForm />} />
           <Route path="/cards/:id" element={<CardViewPage />} />
           <Route path="/comics/:id" element={<ComicViewPage />} />
