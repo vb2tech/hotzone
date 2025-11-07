@@ -300,7 +300,7 @@ export const ItemDetailPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {displayRows.map((row, index) => {
+                    {displayRows.map((row) => {
                       if (row.type === 'total') {
                         return (
                           <tr key="total" className="bg-blue-50 font-semibold border-b-2 border-gray-300">
