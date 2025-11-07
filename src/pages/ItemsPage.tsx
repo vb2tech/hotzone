@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, Container, Zone } from '../lib/supabase'
-import { Layers, Plus, Save, X } from 'lucide-react'
+import { Layers, Plus, Save, X, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react'
 
 type ViewSize = 'small' | 'medium' | 'large'
 
@@ -50,6 +50,13 @@ export const ItemsPage: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'card' | 'comic'>('all')
   const [containers, setContainers] = useState<ContainerWithZone[]>([])
   const [editingItems, setEditingItems] = useState<Map<string, ItemWithDetails>>(new Map())
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState<number>(() => {
+    const saved = localStorage.getItem('items-per-page')
+    return saved ? parseInt(saved, 10) : 25
+  })
+  const [sortColumn, setSortColumn] = useState<string | null>(null)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [viewSize, setViewSize] = useState<ViewSize>(() => {
     const saved = localStorage.getItem('items-view-size')
     return (saved as ViewSize) || 'medium'
@@ -402,6 +409,123 @@ export const ItemsPage: React.FC = () => {
     filter === 'all' || item.item_type === filter
   )
 
+  // Sorting function
+  const sortItems = (items: ItemWithDetails[], column: string, direction: 'asc' | 'desc'): ItemWithDetails[] => {
+    return [...items].sort((a, b) => {
+      let aValue: any
+      let bValue: any
+
+      switch (column) {
+        case 'type':
+          aValue = a.item_type
+          bValue = b.item_type
+          break
+        case 'name':
+          aValue = a.item_type === 'card' ? a.player : a.title
+          bValue = b.item_type === 'card' ? b.player : b.title
+          break
+        case 'details':
+          if (a.item_type === 'card') {
+            aValue = `${a.manufacturer || ''} ${a.sport || ''} ${a.year || ''}`
+          } else {
+            aValue = `${a.publisher || ''} #${a.issue || ''} (${a.year || ''})`
+          }
+          if (b.item_type === 'card') {
+            bValue = `${b.manufacturer || ''} ${b.sport || ''} ${b.year || ''}`
+          } else {
+            bValue = `${b.publisher || ''} #${b.issue || ''} (${b.year || ''})`
+          }
+          break
+        case 'cardNumber':
+          aValue = a.number || ''
+          bValue = b.number || ''
+          break
+        case 'team':
+          aValue = a.team || ''
+          bValue = b.team || ''
+          break
+        case 'container':
+          aValue = a.container?.name || ''
+          bValue = b.container?.name || ''
+          break
+        case 'zone':
+          aValue = a.container?.zone?.name || ''
+          bValue = b.container?.zone?.name || ''
+          break
+        case 'quantity':
+          aValue = a.quantity || 0
+          bValue = b.quantity || 0
+          break
+        case 'grade':
+          aValue = a.grade ?? -Infinity
+          bValue = b.grade ?? -Infinity
+          break
+        case 'price':
+          aValue = a.price ?? -Infinity
+          bValue = b.price ?? -Infinity
+          break
+        case 'cost':
+          aValue = a.cost ?? -Infinity
+          bValue = b.cost ?? -Infinity
+          break
+        default:
+          return 0
+      }
+
+      // Handle null/undefined values
+      if (aValue == null && bValue == null) return 0
+      if (aValue == null) return direction === 'asc' ? 1 : -1
+      if (bValue == null) return direction === 'asc' ? -1 : 1
+
+      // Compare values
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue)
+        return direction === 'asc' ? comparison : -comparison
+      } else {
+        const comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+        return direction === 'asc' ? comparison : -comparison
+      }
+    })
+  }
+
+  // Apply sorting
+  const sortedItems = sortColumn ? sortItems(filteredItems, sortColumn, sortDirection) : filteredItems
+
+  // Pagination calculations
+  const totalPages = Math.ceil(sortedItems.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedItems = sortedItems.slice(startIndex, endIndex)
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      // Toggle direction if clicking the same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      // Set new column and default to ascending
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+    setCurrentPage(1) // Reset to first page when sorting
+  }
+
+  // Reset to page 1 when filter, itemsPerPage, or sort changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filter, itemsPerPage, sortColumn, sortDirection])
+
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value)
+    localStorage.setItem('items-per-page', value.toString())
+  }
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -464,8 +588,8 @@ export const ItemsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="border-b border-gray-200">
+      {/* Filter Tabs and Items Per Page Selector */}
+      <div className="flex justify-between items-center border-b border-gray-200 pb-4">
         <nav className="-mb-px flex space-x-8">
           {[
             { key: 'all', label: 'All Items', count: items.length },
@@ -485,46 +609,162 @@ export const ItemsPage: React.FC = () => {
             </button>
           ))}
         </nav>
+        <div className="flex items-center space-x-2">
+          <label htmlFor="items-per-page" className="text-sm text-gray-700">
+            Items per page:
+          </label>
+          <select
+            id="items-per-page"
+            value={itemsPerPage}
+            onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value, 10))}
+            className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
       </div>
 
       {filteredItems.length > 0 ? (
+        <>
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
-                      Type
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('type')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Type</span>
+                        {sortColumn === 'type' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
                     </th>
-                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
-                      Name
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('name')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Name</span>
+                        {sortColumn === 'name' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
                     </th>
-                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
-                      Details
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('details')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Details</span>
+                        {sortColumn === 'details' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
                     </th>
-                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
-                      Card #
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('cardNumber')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Card #</span>
+                        {sortColumn === 'cardNumber' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
                     </th>
-                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
-                      Team
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('team')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Team</span>
+                        {sortColumn === 'team' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
                     </th>
-                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
-                      Container
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('container')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Container</span>
+                        {sortColumn === 'container' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
                     </th>
-                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
-                      Zone
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('zone')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Zone</span>
+                        {sortColumn === 'zone' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
                     </th>
-                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
-                      Qty
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('quantity')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Qty</span>
+                        {sortColumn === 'quantity' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
                     </th>
-                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
-                      Grade
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('grade')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Grade</span>
+                        {sortColumn === 'grade' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
                     </th>
-                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
-                      Price
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('price')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Price</span>
+                        {sortColumn === 'price' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
                     </th>
-                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider`}>
-                      Cost
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('cost')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Cost</span>
+                        {sortColumn === 'cost' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
                     </th>
                     <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-right font-medium text-gray-500 uppercase tracking-wider`}>
                       Actions
@@ -532,7 +772,7 @@ export const ItemsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredItems.map((item) => {
+                  {paginatedItems.map((item) => {
                     const isEditing = item.isEditing || editingItems.has(item.id)
                     const editingItem = editingItems.get(item.id) || item
                     const inputSize = viewSize === 'small' ? 'text-xs px-1 py-0.5' : viewSize === 'large' ? 'text-base px-2 py-1' : 'text-sm px-1.5 py-1'
@@ -804,6 +1044,104 @@ export const ItemsPage: React.FC = () => {
               </table>
             </div>
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                    currentPage === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                    currentPage === totalPages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
+                    <span className="font-medium">{Math.min(endIndex, sortedItems.length)}</span> of{' '}
+                    <span className="font-medium">{sortedItems.length}</span> results
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button
+                      onClick={() => goToPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 text-sm font-medium ${
+                        currentPage === 1
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                      // Show first page, last page, current page, and pages around current
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => goToPage(page)}
+                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                              currentPage === page
+                                ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        )
+                      } else if (page === currentPage - 2 || page === currentPage + 2) {
+                        return (
+                          <span
+                            key={page}
+                            className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
+                          >
+                            ...
+                          </span>
+                        )
+                      }
+                      return null
+                    })}
+                    <button
+                      onClick={() => goToPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 text-sm font-medium ${
+                        currentPage === totalPages
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-center py-12">
           <Layers className="mx-auto h-12 w-12 text-gray-400" />
