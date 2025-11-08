@@ -209,6 +209,32 @@ export const Dashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
+                  {/* Summary Row */}
+                  {(() => {
+                    const totalCount = stats.groupedItems.reduce((sum, item) => sum + item.totalCount, 0)
+                    const totalCost = stats.groupedItems.reduce((sum, item) => sum + item.totalCost, 0)
+                    const totalValue = stats.groupedItems.reduce((sum, item) => sum + item.totalValue, 0)
+                    
+                    return (
+                      <tr className="bg-blue-50 font-semibold border-b-2 border-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                          Total
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                          {/* Empty for type column */}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 text-right">
+                          {totalCount.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 text-right">
+                          ${totalCost.toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600 text-right">
+                          ${totalValue.toFixed(2)}
+                        </td>
+                      </tr>
+                    )
+                  })()}
                   {stats.groupedItems.map((item, index) => (
                     <tr 
                       key={`${item.name}-${index}`} 
