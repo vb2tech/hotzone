@@ -47,7 +47,7 @@ interface ContainerWithZone extends Container {
 export const ItemsPage: React.FC = () => {
   const [items, setItems] = useState<ItemWithDetails[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'card' | 'comic'>('all')
+  const [filter, setFilter] = useState<'all' | 'card' | 'comic' | 'graded-card' | 'graded-comic'>('all')
   const [containers, setContainers] = useState<ContainerWithZone[]>([])
   const [editingItems, setEditingItems] = useState<Map<string, ItemWithDetails>>(new Map())
   const [currentPage, setCurrentPage] = useState(1)
@@ -405,9 +405,14 @@ export const ItemsPage: React.FC = () => {
     fetchItems()
   }
 
-  const filteredItems = items.filter(item => 
-    filter === 'all' || item.item_type === filter
-  )
+  const filteredItems = items.filter(item => {
+    if (filter === 'all') return true
+    if (filter === 'card') return item.item_type === 'card'
+    if (filter === 'comic') return item.item_type === 'comic'
+    if (filter === 'graded-card') return item.item_type === 'card' && item.grade != null
+    if (filter === 'graded-comic') return item.item_type === 'comic' && item.grade != null
+    return false
+  })
 
   // Sorting function
   const sortItems = (items: ItemWithDetails[], column: string, direction: 'asc' | 'desc'): ItemWithDetails[] => {
@@ -594,7 +599,9 @@ export const ItemsPage: React.FC = () => {
           {[
             { key: 'all', label: 'All Items', count: items.length },
             { key: 'card', label: 'Cards', count: items.filter(i => i.item_type === 'card').length },
-            { key: 'comic', label: 'Comics', count: items.filter(i => i.item_type === 'comic').length }
+            { key: 'graded-card', label: 'Graded Cards', count: items.filter(i => i.item_type === 'card' && i.grade != null).length },
+            { key: 'comic', label: 'Comics', count: items.filter(i => i.item_type === 'comic').length },
+            { key: 'graded-comic', label: 'Graded Comics', count: items.filter(i => i.item_type === 'comic' && i.grade != null).length }
           ].map((tab) => (
             <button
               key={tab.key}
