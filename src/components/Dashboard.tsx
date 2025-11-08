@@ -29,16 +29,16 @@ export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+  const fetchStats = async () => {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
         // Fetch counts and all items
         const [zonesResult, containersResult, cardsResult, comicsResult] = await Promise.all([
-          supabase.from('zones').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-          supabase.from('containers').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('zones').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('containers').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
           supabase.from('cards').select('*').eq('user_id', user.id),
           supabase.from('comics').select('*').eq('user_id', user.id)
         ])
@@ -100,18 +100,18 @@ export const Dashboard: React.FC = () => {
           a.name.localeCompare(b.name)
         )
 
-        setStats({
-          zones: zonesResult.count || 0,
-          containers: containersResult.count || 0,
+      setStats({
+        zones: zonesResult.count || 0,
+        containers: containersResult.count || 0,
           items: (cardsResult.data?.length || 0) + (comicsResult.data?.length || 0),
           groupedItems
-        })
-      } catch (error) {
-        console.error('Error fetching dashboard stats:', error)
-      } finally {
-        setLoading(false)
-      }
+      })
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error)
+    } finally {
+      setLoading(false)
     }
+  }
 
     fetchStats()
   }, [])

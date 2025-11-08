@@ -581,6 +581,10 @@ export const ItemsPage: React.FC = () => {
           aValue = a.cost ?? -Infinity
           bValue = b.cost ?? -Infinity
           break
+        case 'profitLoss':
+          aValue = (a.price ?? 0) - (a.cost ?? 0)
+          bValue = (b.price ?? 0) - (b.cost ?? 0)
+          break
         default:
           return 0
       }
@@ -1001,31 +1005,6 @@ export const ItemsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Price Range */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
-              <div className="flex space-x-2">
-                <input
-                  type="number"
-                  step="0.01"
-                  value={filters.priceMin}
-                  onChange={(e) => setFilters({ ...filters, priceMin: e.target.value })}
-                  placeholder="Min $"
-                  min="0"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  value={filters.priceMax}
-                  onChange={(e) => setFilters({ ...filters, priceMax: e.target.value })}
-                  placeholder="Max $"
-                  min="0"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-
             {/* Cost Range */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Cost</label>
@@ -1050,6 +1029,31 @@ export const ItemsPage: React.FC = () => {
                 />
               </div>
             </div>
+
+            {/* Price Range */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+              <div className="flex space-x-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={filters.priceMin}
+                  onChange={(e) => setFilters({ ...filters, priceMin: e.target.value })}
+                  placeholder="Min $"
+                  min="0"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  value={filters.priceMax}
+                  onChange={(e) => setFilters({ ...filters, priceMax: e.target.value })}
+                  placeholder="Max $"
+                  min="0"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1064,9 +1068,9 @@ export const ItemsPage: React.FC = () => {
                     <th 
                       scope="col" 
                       onClick={() => handleSort('type')}
-                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
                     >
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center justify-center space-x-1">
                         <span>Type</span>
                         {sortColumn === 'type' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
@@ -1076,9 +1080,9 @@ export const ItemsPage: React.FC = () => {
                     <th 
                       scope="col" 
                       onClick={() => handleSort('name')}
-                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
                     >
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center justify-center space-x-1">
                         <span>Name</span>
                         {sortColumn === 'name' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
@@ -1088,9 +1092,9 @@ export const ItemsPage: React.FC = () => {
                     <th 
                       scope="col" 
                       onClick={() => handleSort('details')}
-                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
                     >
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center justify-center space-x-1">
                         <span>Details</span>
                         {sortColumn === 'details' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
@@ -1100,9 +1104,9 @@ export const ItemsPage: React.FC = () => {
                     <th 
                       scope="col" 
                       onClick={() => handleSort('cardNumber')}
-                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
                     >
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center justify-center space-x-1">
                         <span>Card #</span>
                         {sortColumn === 'cardNumber' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
@@ -1112,9 +1116,9 @@ export const ItemsPage: React.FC = () => {
                     <th 
                       scope="col" 
                       onClick={() => handleSort('team')}
-                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
                     >
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center justify-center space-x-1">
                         <span>Team</span>
                         {sortColumn === 'team' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
@@ -1124,9 +1128,9 @@ export const ItemsPage: React.FC = () => {
                     <th 
                       scope="col" 
                       onClick={() => handleSort('container')}
-                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
                     >
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center justify-center space-x-1">
                         <span>Container</span>
                         {sortColumn === 'container' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
@@ -1136,9 +1140,9 @@ export const ItemsPage: React.FC = () => {
                     <th 
                       scope="col" 
                       onClick={() => handleSort('zone')}
-                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
                     >
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center justify-center space-x-1">
                         <span>Zone</span>
                         {sortColumn === 'zone' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
@@ -1148,9 +1152,9 @@ export const ItemsPage: React.FC = () => {
                     <th 
                       scope="col" 
                       onClick={() => handleSort('quantity')}
-                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
                     >
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center justify-center space-x-1">
                         <span>Qty</span>
                         {sortColumn === 'quantity' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
@@ -1160,9 +1164,9 @@ export const ItemsPage: React.FC = () => {
                     <th 
                       scope="col" 
                       onClick={() => handleSort('grade')}
-                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
                     >
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center justify-center space-x-1">
                         <span>Grade</span>
                         {sortColumn === 'grade' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
@@ -1171,10 +1175,22 @@ export const ItemsPage: React.FC = () => {
                     </th>
                     <th 
                       scope="col" 
-                      onClick={() => handleSort('price')}
-                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                      onClick={() => handleSort('cost')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
                     >
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center justify-center space-x-1">
+                        <span>Cost</span>
+                        {sortColumn === 'cost' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('price')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center justify-center space-x-1">
                         <span>Price</span>
                         {sortColumn === 'price' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
@@ -1183,17 +1199,17 @@ export const ItemsPage: React.FC = () => {
                     </th>
                     <th 
                       scope="col" 
-                      onClick={() => handleSort('cost')}
-                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                      onClick={() => handleSort('profitLoss')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
                     >
-                      <div className="flex items-center space-x-1">
-                        <span>Cost</span>
-                        {sortColumn === 'cost' && (
+                      <div className="flex items-center justify-center space-x-1">
+                        <span>P/L</span>
+                        {sortColumn === 'profitLoss' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
                         )}
                       </div>
                     </th>
-                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-right font-medium text-gray-500 uppercase tracking-wider`}>
+                    <th scope="col" className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider`}>
                       Actions
                     </th>
                   </tr>
@@ -1206,16 +1222,16 @@ export const ItemsPage: React.FC = () => {
                     
                     return (
                       <tr key={item.id} className={`hover:bg-gray-50 ${isEditing ? 'bg-yellow-50' : ''}`}>
-                        <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full ${viewSize === 'small' ? 'text-xs' : viewSize === 'large' ? 'text-base' : 'text-sm'} font-medium ${
-                            item.item_type === 'card' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : 'bg-green-100 text-green-800'
-                          }`}>
-                            {item.item_type}
-                          </span>
-                        </td>
-                        <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full ${viewSize === 'small' ? 'text-xs' : viewSize === 'large' ? 'text-base' : 'text-sm'} font-medium ${
+                          item.item_type === 'card' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {item.item_type}
+                        </span>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
                           {isEditing ? (
                             <input
                               type="text"
@@ -1224,15 +1240,15 @@ export const ItemsPage: React.FC = () => {
                               className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-full`}
                             />
                           ) : (
-                            <Link 
-                              to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
-                              className={`${textSizes.heading} font-medium text-purple-600 hover:text-purple-900`}
-                            >
-                              {item.item_type === 'card' ? item.player : item.title}
-                            </Link>
+                        <Link 
+                          to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
+                          className={`${textSizes.heading} font-medium text-purple-600 hover:text-purple-900`}
+                        >
+                          {item.item_type === 'card' ? item.player : item.title}
+                        </Link>
                           )}
-                        </td>
-                        <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'}`}>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'}`}>
                           {isEditing ? (
                             <div className="space-y-1">
                               {item.item_type === 'card' ? (
@@ -1286,15 +1302,15 @@ export const ItemsPage: React.FC = () => {
                               )}
                             </div>
                           ) : (
-                            <div className={`${textSizes.subtext} text-gray-900`}>
-                              {item.item_type === 'card' 
-                                ? `${item.manufacturer} ${item.sport} ${item.year}`
-                                : `${item.publisher} #${item.issue} (${item.year})`
-                              }
-                            </div>
+                        <div className={`${textSizes.subtext} text-gray-900`}>
+                          {item.item_type === 'card' 
+                            ? `${item.manufacturer} ${item.sport} ${item.year}`
+                            : `${item.publisher} #${item.issue} (${item.year})`
+                          }
+                        </div>
                           )}
-                        </td>
-                        <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
                           {isEditing && item.item_type === 'card' ? (
                             <div className="space-y-1">
                               <input
@@ -1313,17 +1329,17 @@ export const ItemsPage: React.FC = () => {
                               />
                             </div>
                           ) : (
-                            <div className={`${textSizes.subtext} text-gray-900`}>
-                              {item.item_type === 'card' && item.number 
-                                ? item.number_out_of 
-                                  ? `${item.number} / ${item.number_out_of}` 
-                                  : item.number
-                                : '-'
-                              }
-                            </div>
+                        <div className={`${textSizes.subtext} text-gray-900`}>
+                          {item.item_type === 'card' && item.number 
+                            ? item.number_out_of 
+                              ? `${item.number} / ${item.number_out_of}` 
+                              : item.number
+                            : '-'
+                          }
+                        </div>
                           )}
-                        </td>
-                        <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
                           {isEditing && item.item_type === 'card' ? (
                             <input
                               type="text"
@@ -1333,12 +1349,12 @@ export const ItemsPage: React.FC = () => {
                               className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-full`}
                             />
                           ) : (
-                            <div className={`${textSizes.subtext} text-gray-900`}>
-                              {item.item_type === 'card' && item.team ? item.team : '-'}
-                            </div>
+                        <div className={`${textSizes.subtext} text-gray-900`}>
+                          {item.item_type === 'card' && item.team ? item.team : '-'}
+                        </div>
                           )}
-                        </td>
-                        <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
                           {isEditing ? (
                             <select
                               value={editingItem.container_id}
@@ -1353,17 +1369,17 @@ export const ItemsPage: React.FC = () => {
                               ))}
                             </select>
                           ) : (
-                            <div className={`${textSizes.subtext} text-gray-500`}>
-                              {item.container?.name || 'No Container'}
-                            </div>
+                        <div className={`${textSizes.subtext} text-gray-500`}>
+                          {item.container?.name || 'No Container'}
+                        </div>
                           )}
-                        </td>
-                        <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
-                          <div className={`${textSizes.subtext} text-gray-500`}>
-                            {item.container?.zone?.name || 'Unknown Zone'}
-                          </div>
-                        </td>
-                        <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                        <div className={`${textSizes.subtext} text-gray-500`}>
+                          {item.container?.zone?.name || 'Unknown Zone'}
+                        </div>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
                           {isEditing ? (
                             <input
                               type="number"
@@ -1373,12 +1389,12 @@ export const ItemsPage: React.FC = () => {
                               className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-16`}
                             />
                           ) : (
-                            <div className={`${textSizes.subtext} text-gray-900`}>
-                              {item.quantity}
-                            </div>
+                        <div className={`${textSizes.subtext} text-gray-900`}>
+                          {item.quantity}
+                        </div>
                           )}
-                        </td>
-                        <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
                           {isEditing ? (
                             <input
                               type="number"
@@ -1388,27 +1404,12 @@ export const ItemsPage: React.FC = () => {
                               className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-16`}
                             />
                           ) : (
-                            <div className={`${textSizes.subtext} text-gray-900`}>
-                              {item.grade || '-'}
-                            </div>
+                        <div className={`${textSizes.subtext} text-gray-900`}>
+                          {item.grade || '-'}
+                        </div>
                           )}
-                        </td>
-                        <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
-                          {isEditing ? (
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={editingItem.price || ''}
-                              onChange={(e) => updateEditingItem(item.id, 'price', e.target.value ? parseFloat(e.target.value) : null)}
-                              className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-20`}
-                            />
-                          ) : (
-                            <div className={`${textSizes.subtext} font-medium text-green-600`}>
-                              {item.price ? `$${item.price.toFixed(2)}` : '-'}
-                            </div>
-                          )}
-                        </td>
-                        <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
                           {isEditing ? (
                             <input
                               type="number"
@@ -1418,12 +1419,48 @@ export const ItemsPage: React.FC = () => {
                               className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-20`}
                             />
                           ) : (
-                            <div className={`${textSizes.subtext} font-medium text-blue-600`}>
+                            <div className={`${textSizes.subtext} font-medium text-orange-600`}>
                               {item.cost ? `$${item.cost.toFixed(2)}` : '-'}
-                            </div>
+                        </div>
+                          )}
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editingItem.price || ''}
+                              onChange={(e) => updateEditingItem(item.id, 'price', e.target.value ? parseFloat(e.target.value) : null)}
+                              className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-20`}
+                            />
+                          ) : (
+                        <div className={`${textSizes.subtext} font-medium text-blue-600`}>
+                              {item.price ? `$${item.price.toFixed(2)}` : '-'}
+                        </div>
                           )}
                         </td>
-                        <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap text-right ${viewSize === 'small' ? 'text-xs' : viewSize === 'large' ? 'text-base' : 'text-sm'} font-medium`}>
+                        <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap text-right`}>
+                          {(() => {
+                            const price = item.price ?? 0
+                            const cost = item.cost ?? 0
+                            const profitLoss = price - cost
+                            
+                            if (price === 0 && cost === 0) {
+                              return <div className={`${textSizes.subtext} font-medium text-gray-500`}>-</div>
+                            }
+                            
+                            const isProfit = profitLoss > 0
+                            const colorClass = isProfit ? 'text-green-600' : profitLoss < 0 ? 'text-red-600' : 'text-gray-500'
+                            const sign = profitLoss >= 0 ? '+' : ''
+                            
+                            return (
+                              <div className={`${textSizes.subtext} font-medium ${colorClass}`}>
+                                {sign}${profitLoss.toFixed(2)}
+                              </div>
+                            )
+                          })()}
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap text-right ${viewSize === 'small' ? 'text-xs' : viewSize === 'large' ? 'text-base' : 'text-sm'} font-medium`}>
                           {isEditing ? (
                             <div className="flex items-center justify-end gap-2">
                               <button
@@ -1449,22 +1486,22 @@ export const ItemsPage: React.FC = () => {
                               >
                                 Clone
                               </button>
-                              <Link
-                                to={`/items/${item.id}/edit`}
+                        <Link
+                          to={`/items/${item.id}/edit`}
                                 className="text-indigo-600 hover:text-indigo-900"
-                              >
-                                Edit
-                              </Link>
-                              <button
-                                onClick={() => deleteItem(item.id)}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                Delete
-                              </button>
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          onClick={() => deleteItem(item.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Delete
+                        </button>
                             </div>
                           )}
-                        </td>
-                      </tr>
+                      </td>
+                    </tr>
                     )
                   })}
                 </tbody>
