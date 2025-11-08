@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, Container, Zone } from '../lib/supabase'
-import { Layers, Plus, Save, X, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react'
+import { Layers, Plus, Save, X, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Filter, X as XIcon } from 'lucide-react'
 
 type ViewSize = 'small' | 'medium' | 'large'
 
@@ -60,6 +60,28 @@ export const ItemsPage: React.FC = () => {
   const [viewSize, setViewSize] = useState<ViewSize>(() => {
     const saved = localStorage.getItem('items-view-size')
     return (saved as ViewSize) || 'medium'
+  })
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState({
+    type: '' as '' | 'card' | 'comic',
+    name: '',
+    manufacturer: '',
+    sport: '',
+    publisher: '',
+    team: '',
+    cardNumber: '',
+    container: '',
+    zone: '',
+    yearMin: '',
+    yearMax: '',
+    quantityMin: '',
+    quantityMax: '',
+    gradeMin: '',
+    gradeMax: '',
+    priceMin: '',
+    priceMax: '',
+    costMin: '',
+    costMax: ''
   })
 
   const changeViewSize = (size: ViewSize) => {
@@ -406,12 +428,98 @@ export const ItemsPage: React.FC = () => {
   }
 
   const filteredItems = items.filter(item => {
-    if (filter === 'all') return true
-    if (filter === 'card') return item.item_type === 'card'
-    if (filter === 'comic') return item.item_type === 'comic'
-    if (filter === 'graded-card') return item.item_type === 'card' && item.grade != null
-    if (filter === 'graded-comic') return item.item_type === 'comic' && item.grade != null
-    return false
+    // Apply tab filter first
+    if (filter === 'all') {
+      // Continue to column filters
+    } else if (filter === 'card') {
+      if (item.item_type !== 'card') return false
+    } else if (filter === 'comic') {
+      if (item.item_type !== 'comic') return false
+    } else if (filter === 'graded-card') {
+      if (item.item_type !== 'card' || item.grade == null) return false
+    } else if (filter === 'graded-comic') {
+      if (item.item_type !== 'comic' || item.grade == null) return false
+    } else {
+      return false
+    }
+
+    // Apply column filters
+    if (filters.type && item.item_type !== filters.type) return false
+    
+    if (filters.name) {
+      const name = item.item_type === 'card' ? item.player : item.title
+      if (!name?.toLowerCase().includes(filters.name.toLowerCase())) return false
+    }
+    
+    if (filters.manufacturer && item.item_type === 'card') {
+      if (!item.manufacturer?.toLowerCase().includes(filters.manufacturer.toLowerCase())) return false
+    }
+    
+    if (filters.sport && item.item_type === 'card') {
+      if (!item.sport?.toLowerCase().includes(filters.sport.toLowerCase())) return false
+    }
+    
+    if (filters.publisher && item.item_type === 'comic') {
+      if (!item.publisher?.toLowerCase().includes(filters.publisher.toLowerCase())) return false
+    }
+    
+    if (filters.team && item.item_type === 'card') {
+      if (!item.team?.toLowerCase().includes(filters.team.toLowerCase())) return false
+    }
+    
+    if (filters.cardNumber && item.item_type === 'card') {
+      if (!item.number?.toLowerCase().includes(filters.cardNumber.toLowerCase())) return false
+    }
+    
+    if (filters.container) {
+      if (item.container?.id !== filters.container) return false
+    }
+    
+    if (filters.zone) {
+      if (item.container?.zone?.id !== filters.zone) return false
+    }
+    
+    if (filters.yearMin && item.year != null) {
+      if (item.year < parseInt(filters.yearMin)) return false
+    }
+    
+    if (filters.yearMax && item.year != null) {
+      if (item.year > parseInt(filters.yearMax)) return false
+    }
+    
+    if (filters.quantityMin) {
+      if (item.quantity < parseInt(filters.quantityMin)) return false
+    }
+    
+    if (filters.quantityMax) {
+      if (item.quantity > parseInt(filters.quantityMax)) return false
+    }
+    
+    if (filters.gradeMin && item.grade != null) {
+      if (item.grade < parseFloat(filters.gradeMin)) return false
+    }
+    
+    if (filters.gradeMax && item.grade != null) {
+      if (item.grade > parseFloat(filters.gradeMax)) return false
+    }
+    
+    if (filters.priceMin && item.price != null) {
+      if (item.price < parseFloat(filters.priceMin)) return false
+    }
+    
+    if (filters.priceMax && item.price != null) {
+      if (item.price > parseFloat(filters.priceMax)) return false
+    }
+    
+    if (filters.costMin && item.cost != null) {
+      if (item.cost < parseFloat(filters.costMin)) return false
+    }
+    
+    if (filters.costMax && item.cost != null) {
+      if (item.cost > parseFloat(filters.costMax)) return false
+    }
+    
+    return true
   })
 
   // Sorting function
@@ -514,10 +622,47 @@ export const ItemsPage: React.FC = () => {
     setCurrentPage(1) // Reset to first page when sorting
   }
 
-  // Reset to page 1 when filter, itemsPerPage, or sort changes
+  // Reset to page 1 when filter, itemsPerPage, sort, or column filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [filter, itemsPerPage, sortColumn, sortDirection])
+  }, [filter, itemsPerPage, sortColumn, sortDirection, filters])
+
+  const clearFilters = () => {
+    setFilters({
+      type: '',
+      name: '',
+      manufacturer: '',
+      sport: '',
+      publisher: '',
+      team: '',
+      cardNumber: '',
+      container: '',
+      zone: '',
+      yearMin: '',
+      yearMax: '',
+      quantityMin: '',
+      quantityMax: '',
+      gradeMin: '',
+      gradeMax: '',
+      priceMin: '',
+      priceMax: '',
+      costMin: '',
+      costMax: ''
+    })
+  }
+
+  const hasActiveFilters = Object.values(filters).some(value => value !== '')
+  
+  // Get unique zones for filter dropdown
+  const uniqueZones = Array.from(new Set(
+    containers
+      .map(c => c.zone)
+      .filter((zone): zone is Zone => zone != null)
+      .map(z => z.id)
+  )).map(zoneId => {
+    const zone = containers.find(c => c.zone?.id === zoneId)?.zone
+    return zone ? { id: zone.id, name: zone.name } : null
+  }).filter((zone): zone is { id: string; name: string } => zone != null)
 
   const handleItemsPerPageChange = (value: number) => {
     setItemsPerPage(value)
@@ -595,6 +740,33 @@ export const ItemsPage: React.FC = () => {
 
       {/* Filter Tabs and Items Per Page Selector */}
       <div className="flex justify-between items-center border-b border-gray-200 pb-4">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md ${
+              showFilters || hasActiveFilters
+                ? 'bg-blue-50 text-blue-700 border-blue-300'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Filters
+            {hasActiveFilters && (
+              <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-600 text-white">
+                Active
+              </span>
+            )}
+          </button>
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md bg-white text-gray-700 hover:bg-gray-50"
+            >
+              <XIcon className="h-4 w-4 mr-2" />
+              Clear Filters
+            </button>
+          )}
+        </div>
         <nav className="-mb-px flex space-x-8">
           {[
             { key: 'all', label: 'All Items', count: items.length },
@@ -633,6 +805,254 @@ export const ItemsPage: React.FC = () => {
           </select>
         </div>
       </div>
+
+      {/* Filter Panel */}
+      {showFilters && (
+        <div className="bg-white shadow rounded-lg p-6 border border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {/* Type Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+              <select
+                value={filters.type}
+                onChange={(e) => setFilters({ ...filters, type: e.target.value as '' | 'card' | 'comic' })}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Types</option>
+                <option value="card">Card</option>
+                <option value="comic">Comic</option>
+              </select>
+            </div>
+
+            {/* Name Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <input
+                type="text"
+                value={filters.name}
+                onChange={(e) => setFilters({ ...filters, name: e.target.value })}
+                placeholder="Player/Title"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            {/* Manufacturer Filter (Cards) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Manufacturer</label>
+              <input
+                type="text"
+                value={filters.manufacturer}
+                onChange={(e) => setFilters({ ...filters, manufacturer: e.target.value })}
+                placeholder="Topps, Panini..."
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            {/* Sport Filter (Cards) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sport</label>
+              <input
+                type="text"
+                value={filters.sport}
+                onChange={(e) => setFilters({ ...filters, sport: e.target.value })}
+                placeholder="Basketball, Football..."
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            {/* Publisher Filter (Comics) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Publisher</label>
+              <input
+                type="text"
+                value={filters.publisher}
+                onChange={(e) => setFilters({ ...filters, publisher: e.target.value })}
+                placeholder="Marvel, DC..."
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            {/* Team Filter (Cards) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Team</label>
+              <input
+                type="text"
+                value={filters.team}
+                onChange={(e) => setFilters({ ...filters, team: e.target.value })}
+                placeholder="Team name"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            {/* Card Number Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Card #</label>
+              <input
+                type="text"
+                value={filters.cardNumber}
+                onChange={(e) => setFilters({ ...filters, cardNumber: e.target.value })}
+                placeholder="Card number"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            {/* Container Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Container</label>
+              <select
+                value={filters.container}
+                onChange={(e) => setFilters({ ...filters, container: e.target.value })}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Containers</option>
+                {containers.map(container => (
+                  <option key={container.id} value={container.id}>
+                    {container.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Zone Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Zone</label>
+              <select
+                value={filters.zone}
+                onChange={(e) => setFilters({ ...filters, zone: e.target.value })}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Zones</option>
+                {uniqueZones.map(zone => (
+                  <option key={zone.id} value={zone.id}>
+                    {zone.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Year Range */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+              <div className="flex space-x-2">
+                <input
+                  type="number"
+                  value={filters.yearMin}
+                  onChange={(e) => setFilters({ ...filters, yearMin: e.target.value })}
+                  placeholder="Min"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+                <input
+                  type="number"
+                  value={filters.yearMax}
+                  onChange={(e) => setFilters({ ...filters, yearMax: e.target.value })}
+                  placeholder="Max"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Quantity Range */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+              <div className="flex space-x-2">
+                <input
+                  type="number"
+                  value={filters.quantityMin}
+                  onChange={(e) => setFilters({ ...filters, quantityMin: e.target.value })}
+                  placeholder="Min"
+                  min="0"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+                <input
+                  type="number"
+                  value={filters.quantityMax}
+                  onChange={(e) => setFilters({ ...filters, quantityMax: e.target.value })}
+                  placeholder="Max"
+                  min="0"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Grade Range */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
+              <div className="flex space-x-2">
+                <input
+                  type="number"
+                  step="0.1"
+                  value={filters.gradeMin}
+                  onChange={(e) => setFilters({ ...filters, gradeMin: e.target.value })}
+                  placeholder="Min"
+                  min="0"
+                  max="10"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+                <input
+                  type="number"
+                  step="0.1"
+                  value={filters.gradeMax}
+                  onChange={(e) => setFilters({ ...filters, gradeMax: e.target.value })}
+                  placeholder="Max"
+                  min="0"
+                  max="10"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Price Range */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+              <div className="flex space-x-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={filters.priceMin}
+                  onChange={(e) => setFilters({ ...filters, priceMin: e.target.value })}
+                  placeholder="Min $"
+                  min="0"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  value={filters.priceMax}
+                  onChange={(e) => setFilters({ ...filters, priceMax: e.target.value })}
+                  placeholder="Max $"
+                  min="0"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Cost Range */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cost</label>
+              <div className="flex space-x-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={filters.costMin}
+                  onChange={(e) => setFilters({ ...filters, costMin: e.target.value })}
+                  placeholder="Min $"
+                  min="0"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  value={filters.costMax}
+                  onChange={(e) => setFilters({ ...filters, costMax: e.target.value })}
+                  placeholder="Max $"
+                  min="0"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {filteredItems.length > 0 ? (
         <>
