@@ -81,7 +81,10 @@ export const ItemsPage: React.FC = () => {
     priceMin: '',
     priceMax: '',
     costMin: '',
-    costMax: ''
+    costMax: '',
+    condition: '',
+    description: '',
+    isRookie: ''
   })
 
   const changeViewSize = (size: ViewSize) => {
@@ -436,9 +439,11 @@ export const ItemsPage: React.FC = () => {
     } else if (filter === 'comic') {
       if (item.item_type !== 'comic') return false
     } else if (filter === 'graded-card') {
-      if (item.item_type !== 'card' || item.grade == null) return false
+      // Only show cards where grade is a valid number (not null, not undefined, not empty string)
+      if (item.item_type !== 'card' || item.grade == null || (typeof item.grade === 'string' && item.grade === '')) return false
     } else if (filter === 'graded-comic') {
-      if (item.item_type !== 'comic' || item.grade == null) return false
+      // Only show comics where grade is a valid number (not null, not undefined, not empty string)
+      if (item.item_type !== 'comic' || item.grade == null || (typeof item.grade === 'string' && item.grade === '')) return false
     } else {
       return false
     }
@@ -519,6 +524,20 @@ export const ItemsPage: React.FC = () => {
       if (item.cost > parseFloat(filters.costMax)) return false
     }
     
+    if (filters.condition) {
+      if (!item.condition?.toLowerCase().includes(filters.condition.toLowerCase())) return false
+    }
+    
+    if (filters.description) {
+      if (!item.description?.toLowerCase().includes(filters.description.toLowerCase())) return false
+    }
+    
+    if (filters.isRookie && item.item_type === 'card') {
+      const isRookie = item.is_rookie || false
+      if (filters.isRookie === 'yes' && !isRookie) return false
+      if (filters.isRookie === 'no' && isRookie) return false
+    }
+    
     return true
   })
 
@@ -572,6 +591,18 @@ export const ItemsPage: React.FC = () => {
         case 'grade':
           aValue = a.grade ?? -Infinity
           bValue = b.grade ?? -Infinity
+          break
+        case 'condition':
+          aValue = a.condition || ''
+          bValue = b.condition || ''
+          break
+        case 'isRookie':
+          aValue = a.item_type === 'card' ? (a.is_rookie ? 1 : 0) : -1
+          bValue = b.item_type === 'card' ? (b.is_rookie ? 1 : 0) : -1
+          break
+        case 'description':
+          aValue = a.description || ''
+          bValue = b.description || ''
           break
         case 'price':
           aValue = a.price ?? -Infinity
@@ -651,7 +682,10 @@ export const ItemsPage: React.FC = () => {
       priceMin: '',
       priceMax: '',
       costMin: '',
-      costMax: ''
+      costMax: '',
+      condition: '',
+      description: '',
+      isRookie: ''
     })
   }
 
@@ -775,9 +809,9 @@ export const ItemsPage: React.FC = () => {
           {[
             { key: 'all', label: 'All Items', count: items.length },
             { key: 'card', label: 'Cards', count: items.filter(i => i.item_type === 'card').length },
-            { key: 'graded-card', label: 'Graded Cards', count: items.filter(i => i.item_type === 'card' && i.grade != null).length },
+            { key: 'graded-card', label: 'Graded Cards', count: items.filter(i => i.item_type === 'card' && i.grade != null && !(typeof i.grade === 'string' && i.grade === '')).length },
             { key: 'comic', label: 'Comics', count: items.filter(i => i.item_type === 'comic').length },
-            { key: 'graded-comic', label: 'Graded Comics', count: items.filter(i => i.item_type === 'comic' && i.grade != null).length }
+            { key: 'graded-comic', label: 'Graded Comics', count: items.filter(i => i.item_type === 'comic' && i.grade != null && !(typeof i.grade === 'string' && i.grade === '')).length }
           ].map((tab) => (
             <button
               key={tab.key}
@@ -1054,6 +1088,44 @@ export const ItemsPage: React.FC = () => {
                 />
               </div>
             </div>
+
+            {/* Condition Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
+              <input
+                type="text"
+                value={filters.condition}
+                onChange={(e) => setFilters({ ...filters, condition: e.target.value })}
+                placeholder="Mint, Near Mint..."
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            {/* Description Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <input
+                type="text"
+                value={filters.description}
+                onChange={(e) => setFilters({ ...filters, description: e.target.value })}
+                placeholder="Search description..."
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            {/* Is Rookie Filter (Cards only) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rookie Card</label>
+              <select
+                value={filters.isRookie}
+                onChange={(e) => setFilters({ ...filters, isRookie: e.target.value })}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
           </div>
         </div>
       )}
@@ -1169,6 +1241,42 @@ export const ItemsPage: React.FC = () => {
                       <div className="flex items-center justify-center space-x-1">
                         <span>Grade</span>
                         {sortColumn === 'grade' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('condition')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center justify-center space-x-1">
+                        <span>Condition</span>
+                        {sortColumn === 'condition' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('isRookie')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center justify-center space-x-1">
+                        <span>Rookie</span>
+                        {sortColumn === 'isRookie' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      scope="col" 
+                      onClick={() => handleSort('description')}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                    >
+                      <div className="flex items-center justify-center space-x-1">
+                        <span>Description</span>
+                        {sortColumn === 'description' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
                         )}
                       </div>
@@ -1406,6 +1514,48 @@ export const ItemsPage: React.FC = () => {
                           ) : (
                         <div className={`${textSizes.subtext} text-gray-900`}>
                           {item.grade || '-'}
+                        </div>
+                          )}
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'}`}>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editingItem.condition || ''}
+                              onChange={(e) => updateEditingItem(item.id, 'condition', e.target.value)}
+                              className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-full`}
+                            />
+                          ) : (
+                        <div className={`${textSizes.subtext} text-gray-900`}>
+                          {item.condition || '-'}
+                        </div>
+                          )}
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
+                          {isEditing && item.item_type === 'card' ? (
+                            <input
+                              type="checkbox"
+                              checked={editingItem.is_rookie || false}
+                              onChange={(e) => updateEditingItem(item.id, 'is_rookie', e.target.checked)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                          ) : (
+                        <div className={`${textSizes.subtext} text-gray-900`}>
+                          {item.item_type === 'card' ? (item.is_rookie ? 'Yes' : 'No') : '-'}
+                        </div>
+                          )}
+                      </td>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'}`}>
+                          {isEditing ? (
+                            <textarea
+                              value={editingItem.description || ''}
+                              onChange={(e) => updateEditingItem(item.id, 'description', e.target.value)}
+                              rows={2}
+                              className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-full`}
+                            />
+                          ) : (
+                        <div className={`${textSizes.subtext} text-gray-900`}>
+                          {item.description || '-'}
                         </div>
                           )}
                       </td>

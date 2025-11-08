@@ -270,10 +270,10 @@ export const ItemForm: React.FC = () => {
       
       if (formData.item_type === 'card') {
         // Check for duplicate cards in the same container
-        // Fetch all cards matching the non-nullable fields, then filter in JavaScript
+        // Fetch all cards matching the non-nullable fields, then filter in JavaScript to compare ALL fields
         let query = supabase
           .from('cards')
-          .select('id, team, number')
+          .select('*')
           .eq('container_id', formData.container_id)
           .eq('user_id', user.id)
           .eq('player', formData.player)
@@ -290,10 +290,19 @@ export const ItemForm: React.FC = () => {
 
         if (error) throw error
 
-        // Filter in JavaScript to handle team and number fields (can be null or empty string)
-        // Normalize both form value and database value for comparison
+        // Normalize form values for comparison
         const formTeamValue = (formData.team?.trim() || null)
         const formNumberValue = (formData.number?.trim() || null)
+        const formNumberOutOf = formData.number_type === 'out_of' ? formData.number_out_of : null
+        const formGrade = formData.grade || null
+        const formCondition = (formData.condition?.trim() || null)
+        const formQuantity = formData.quantity || 1
+        const formPrice = formData.price || null
+        const formCost = formData.cost || null
+        const formDescription = (formData.description?.trim() || null)
+        const formIsRookie = formData.is_rookie || false
+
+        // Filter in JavaScript to compare ALL fields
         const filteredCards = existingCards?.filter(card => {
           // Double-check: Exclude the current item if we're editing (defensive programming)
           if (currentItemId && card.id === currentItemId) {
@@ -301,27 +310,53 @@ export const ItemForm: React.FC = () => {
             return false
           }
           
-          // Compare team values (both normalized to null if empty)
+          // Compare all fields
           const cardTeamValue = (card.team?.trim() || null)
           const teamMatches = formTeamValue === cardTeamValue
           
-          // Compare card number values (both normalized to null if empty)
           const cardNumberValue = (card.number?.trim() || null)
           const numberMatches = formNumberValue === cardNumberValue
           
-          // Both team and number must match for it to be a duplicate
-          return teamMatches && numberMatches
+          const cardNumberOutOf = card.number_out_of || null
+          const numberOutOfMatches = formNumberOutOf === cardNumberOutOf
+          
+          const cardGrade = card.grade || null
+          const gradeMatches = formGrade === cardGrade
+          
+          const cardCondition = (card.condition?.trim() || null)
+          const conditionMatches = formCondition === cardCondition
+          
+          const cardQuantity = card.quantity || 1
+          const quantityMatches = formQuantity === cardQuantity
+          
+          const cardPrice = card.price || null
+          const priceMatches = formPrice === cardPrice
+          
+          const cardCost = card.cost || null
+          const costMatches = formCost === cardCost
+          
+          const cardDescription = (card.description?.trim() || null)
+          const descriptionMatches = formDescription === cardDescription
+          
+          const cardIsRookie = card.is_rookie || false
+          const isRookieMatches = formIsRookie === cardIsRookie
+          
+          // ALL fields must match for it to be a duplicate
+          return teamMatches && numberMatches && numberOutOfMatches && gradeMatches && 
+                 conditionMatches && quantityMatches && priceMatches && costMatches && 
+                 descriptionMatches && isRookieMatches
         }) || []
 
         if (filteredCards.length > 0) {
-          setDuplicateError('A card with the same player, team, manufacturer, sport, year, and card number already exists in this container.')
+          setDuplicateError('A card with all the same values already exists in this container.')
           return true
         }
       } else {
         // Check for duplicate comics in the same container
+        // Fetch all comics matching the identifying fields, then filter in JavaScript to compare ALL fields
         let query = supabase
           .from('comics')
-          .select('id')
+          .select('*')
           .eq('container_id', formData.container_id)
           .eq('user_id', user.id)
           .eq('title', formData.title)
@@ -338,17 +373,48 @@ export const ItemForm: React.FC = () => {
 
         if (error) throw error
 
-        // Double-check: Filter out the current item if it somehow got through (defensive programming)
+        // Normalize form values for comparison
+        const formGrade = formData.grade || null
+        const formCondition = (formData.condition?.trim() || null)
+        const formQuantity = formData.quantity || 1
+        const formPrice = formData.price || null
+        const formCost = formData.cost || null
+        const formDescription = (formData.description?.trim() || null)
+
+        // Filter in JavaScript to compare ALL fields
         const filteredComics = existingComics?.filter(comic => {
+          // Double-check: Exclude the current item if we're editing (defensive programming)
           if (currentItemId && comic.id === currentItemId) {
             console.warn('Duplicate check: Found current item in results, excluding it', comic.id)
             return false
           }
-          return true
+          
+          // Compare all fields
+          const comicGrade = comic.grade || null
+          const gradeMatches = formGrade === comicGrade
+          
+          const comicCondition = (comic.condition?.trim() || null)
+          const conditionMatches = formCondition === comicCondition
+          
+          const comicQuantity = comic.quantity || 1
+          const quantityMatches = formQuantity === comicQuantity
+          
+          const comicPrice = comic.price || null
+          const priceMatches = formPrice === comicPrice
+          
+          const comicCost = comic.cost || null
+          const costMatches = formCost === comicCost
+          
+          const comicDescription = (comic.description?.trim() || null)
+          const descriptionMatches = formDescription === comicDescription
+          
+          // ALL fields must match for it to be a duplicate
+          return gradeMatches && conditionMatches && quantityMatches && 
+                 priceMatches && costMatches && descriptionMatches
         }) || []
 
         if (filteredComics.length > 0) {
-          setDuplicateError('A comic with the same title, publisher, issue, and year already exists in this container.')
+          setDuplicateError('A comic with all the same values already exists in this container.')
           return true
         }
       }
