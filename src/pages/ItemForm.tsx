@@ -264,6 +264,10 @@ export const ItemForm: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return false
 
+      // IMPORTANT: When editing, we must exclude the current item from duplicate checks
+      // Otherwise, the item being edited will always match itself and be flagged as a duplicate
+      const currentItemId = isEdit && id ? id : null
+      
       if (formData.item_type === 'card') {
         // Check for duplicate cards in the same container
         // Fetch all cards matching the non-nullable fields, then filter in JavaScript
@@ -277,9 +281,9 @@ export const ItemForm: React.FC = () => {
           .eq('sport', formData.sport)
           .eq('year', formData.card_year)
 
-        // If editing, exclude the current item from the check
-        if (isEdit && id) {
-          query = query.neq('id', id)
+        // CRITICAL: Exclude the current item when editing to prevent false duplicates
+        if (currentItemId) {
+          query = query.neq('id', currentItemId)
         }
 
         const { data: existingCards, error } = await query
@@ -290,8 +294,11 @@ export const ItemForm: React.FC = () => {
         // Normalize both form value and database value for comparison
         const formTeamValue = (formData.team?.trim() || null)
         const filteredCards = existingCards?.filter(card => {
-          // If editing, make sure we exclude the current item (double check)
-          if (isEdit && id && card.id === id) return false
+          // Double-check: Exclude the current item if we're editing (defensive programming)
+          if (currentItemId && card.id === currentItemId) {
+            console.warn('Duplicate check: Found current item in results, excluding it', card.id)
+            return false
+          }
           
           // Compare team values (both normalized to null if empty)
           const cardTeamValue = (card.team?.trim() || null)
@@ -314,16 +321,25 @@ export const ItemForm: React.FC = () => {
           .eq('issue', formData.issue)
           .eq('year', formData.comic_year)
 
-        // If editing, exclude the current item from the check
-        if (isEdit && id) {
-          query = query.neq('id', id)
+        // CRITICAL: Exclude the current item when editing to prevent false duplicates
+        if (currentItemId) {
+          query = query.neq('id', currentItemId)
         }
 
         const { data: existingComics, error } = await query
 
         if (error) throw error
 
-        if (existingComics && existingComics.length > 0) {
+        // Double-check: Filter out the current item if it somehow got through (defensive programming)
+        const filteredComics = existingComics?.filter(comic => {
+          if (currentItemId && comic.id === currentItemId) {
+            console.warn('Duplicate check: Found current item in results, excluding it', comic.id)
+            return false
+          }
+          return true
+        }) || []
+
+        if (filteredComics.length > 0) {
           setDuplicateError('A comic with the same title, publisher, issue, and year already exists in this container.')
           return true
         }
