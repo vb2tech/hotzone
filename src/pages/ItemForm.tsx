@@ -273,7 +273,7 @@ export const ItemForm: React.FC = () => {
         // Fetch all cards matching the non-nullable fields, then filter in JavaScript
         let query = supabase
           .from('cards')
-          .select('id, team')
+          .select('id, team, number')
           .eq('container_id', formData.container_id)
           .eq('user_id', user.id)
           .eq('player', formData.player)
@@ -290,9 +290,10 @@ export const ItemForm: React.FC = () => {
 
         if (error) throw error
 
-        // Filter in JavaScript to handle team field (can be null or empty string)
+        // Filter in JavaScript to handle team and number fields (can be null or empty string)
         // Normalize both form value and database value for comparison
         const formTeamValue = (formData.team?.trim() || null)
+        const formNumberValue = (formData.number?.trim() || null)
         const filteredCards = existingCards?.filter(card => {
           // Double-check: Exclude the current item if we're editing (defensive programming)
           if (currentItemId && card.id === currentItemId) {
@@ -302,11 +303,18 @@ export const ItemForm: React.FC = () => {
           
           // Compare team values (both normalized to null if empty)
           const cardTeamValue = (card.team?.trim() || null)
-          return formTeamValue === cardTeamValue
+          const teamMatches = formTeamValue === cardTeamValue
+          
+          // Compare card number values (both normalized to null if empty)
+          const cardNumberValue = (card.number?.trim() || null)
+          const numberMatches = formNumberValue === cardNumberValue
+          
+          // Both team and number must match for it to be a duplicate
+          return teamMatches && numberMatches
         }) || []
 
         if (filteredCards.length > 0) {
-          setDuplicateError('A card with the same player, team, manufacturer, sport, and year already exists in this container.')
+          setDuplicateError('A card with the same player, team, manufacturer, sport, year, and card number already exists in this container.')
           return true
         }
       } else {
