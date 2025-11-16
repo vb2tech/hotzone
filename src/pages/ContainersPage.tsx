@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, Container, Zone } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { Package, Plus, Flame, Printer, X } from 'lucide-react'
 import QRCodeLib from 'qrcode'
 
@@ -36,15 +37,15 @@ export const ContainersPage: React.FC = () => {
   }
 
   const textSizes = getTextSizeClasses()
+  const { user } = useAuth()
 
   useEffect(() => {
+    if (!user) return
     fetchContainers()
-  }, [])
+  }, [user])
 
   const fetchContainers = async () => {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
       const { data, error } = await supabase

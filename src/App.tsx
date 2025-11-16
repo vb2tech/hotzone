@@ -20,7 +20,7 @@ import { ComicViewPage } from './pages/ComicViewPage'
 
 
 const AppContent: React.FC = () => {
-  const { user, loading } = useAuth()
+  const { user, loading, showAddAccount } = useAuth()
 
   if (loading) {
     return (
@@ -30,7 +30,8 @@ const AppContent: React.FC = () => {
     )
   }
 
-  if (!user) {
+  // Show login form if no user, or if adding an account
+  if (!user || showAddAccount) {
     return <LoginForm />
   }
 

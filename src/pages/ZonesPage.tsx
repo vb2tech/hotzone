@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, Zone } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { MapPin, Plus } from 'lucide-react'
 
 type ViewSize = 'small' | 'medium' | 'large'
@@ -31,15 +32,15 @@ export const ZonesPage: React.FC = () => {
   }
 
   const textSizes = getTextSizeClasses()
+  const { user } = useAuth()
 
   useEffect(() => {
+    if (!user) return
     fetchZones()
-  }, [])
+  }, [user])
 
   const fetchZones = async () => {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
       const { data, error } = await supabase

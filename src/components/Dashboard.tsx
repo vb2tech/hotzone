@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { MapPin, Package, Layers } from 'lucide-react'
 
 interface GroupedItem {
@@ -20,6 +21,7 @@ interface DashboardStats {
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [stats, setStats] = useState<DashboardStats>({
     zones: 0,
     containers: 0,
@@ -29,11 +31,13 @@ export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-  const fetchStats = async () => {
-    try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
+    const fetchStats = async () => {
+      try {
 
         // Fetch counts and all items
         const [zonesResult, containersResult, cardsResult, comicsResult] = await Promise.all([
@@ -114,7 +118,7 @@ export const Dashboard: React.FC = () => {
   }
 
     fetchStats()
-  }, [])
+  }, [user])
 
   if (loading) {
     return (

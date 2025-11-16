@@ -447,7 +447,10 @@ export const ItemForm: React.FC = () => {
         }
       } else {
         // Check for duplicate comics in the same container
-        // Fetch all comics matching the identifying fields, then filter in JavaScript to compare ALL fields
+        // IMPORTANT: Issue number is a key differentiator - comics with the same title but different
+        // issue numbers are considered different items and are always allowed, even in the same container.
+        // We query for comics matching: container, title, publisher, issue, and year.
+        // Then we check if ALL other fields also match (grade, condition, quantity, price, cost, description).
         let query = supabase
           .from('comics')
           .select('*')
@@ -455,7 +458,7 @@ export const ItemForm: React.FC = () => {
           .eq('user_id', user.id)
           .eq('title', formData.title)
           .eq('publisher', formData.publisher)
-          .eq('issue', formData.issue)
+          .eq('issue', formData.issue)  // Issue number is a key differentiator - different issues = different comics
           .eq('year', formData.comic_year)
 
         // CRITICAL: Exclude the current item when editing to prevent false duplicates
@@ -467,6 +470,13 @@ export const ItemForm: React.FC = () => {
 
         if (error) throw error
 
+        // If no comics found with matching title, publisher, issue, and year, it's not a duplicate
+        // (This means different issue numbers are automatically allowed)
+        if (!existingComics || existingComics.length === 0) {
+          setDuplicateError(null)
+          return false
+        }
+
         // Normalize form values for comparison
         const formGrade = formData.grade || null
         const formCondition = (formData.condition?.trim() || null)
@@ -475,7 +485,7 @@ export const ItemForm: React.FC = () => {
         const formCost = formData.cost || null
         const formDescription = (formData.description?.trim() || null)
 
-        // Filter in JavaScript to compare ALL fields
+        // Filter in JavaScript to compare ALL fields (including issue number, which is already filtered in query)
         const filteredComics = existingComics?.filter(comic => {
           // Double-check: Exclude the current item if we're editing (defensive programming)
           if (currentItemId && comic.id === currentItemId) {
@@ -483,7 +493,12 @@ export const ItemForm: React.FC = () => {
             return false
           }
           
-          // Compare all fields
+          // Double-check issue number matches (should already be filtered by query, but defensive check)
+          if (comic.issue !== formData.issue) {
+            return false  // Different issue numbers = not a duplicate
+          }
+          
+          // Compare all other fields
           const comicGrade = comic.grade || null
           const gradeMatches = formGrade === comicGrade
           

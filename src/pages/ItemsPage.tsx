@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, Container, Zone } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { Layers, Plus, Save, X, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Filter, X as XIcon } from 'lucide-react'
 
 type ViewSize = 'small' | 'medium' | 'large'
@@ -105,14 +106,16 @@ export const ItemsPage: React.FC = () => {
 
   const textSizes = getTextSizeClasses()
 
+  const { user } = useAuth()
+
   useEffect(() => {
+    if (!user) return
     fetchItems()
     fetchContainers()
-  }, [])
+  }, [user])
 
   const fetchContainers = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
       const { data, error } = await supabase
@@ -142,8 +145,6 @@ export const ItemsPage: React.FC = () => {
 
   const fetchItems = async () => {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
       // Fetch cards and comics separately for current user only
