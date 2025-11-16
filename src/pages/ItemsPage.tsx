@@ -1637,7 +1637,7 @@ export const ItemsPage: React.FC = () => {
                                 Clone
                               </button>
                         <Link
-                          to={`/items/${item.id}/edit`}
+                          to={`/items/${item.id}/edit?type=${item.item_type}`}
                                 className="text-indigo-600 hover:text-indigo-900"
                         >
                           Edit

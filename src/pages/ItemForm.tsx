@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase, Container, Zone } from '../lib/supabase'
 import { ArrowLeft, Save } from 'lucide-react'
 
@@ -10,6 +10,8 @@ interface ContainerWithZone extends Container {
 export const ItemForm: React.FC = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
+  const itemTypeFromUrl = searchParams.get('type') as 'card' | 'comic' | null
   const isEdit = Boolean(id)
   
   const [formData, setFormData] = useState({
@@ -73,13 +75,101 @@ export const ItemForm: React.FC = () => {
     try {
       setLoading(true)
       
-      // Try to fetch from cards table first
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+      
+      // If we know the item type from URL parameter, query only that table
+      if (itemTypeFromUrl === 'card') {
+        const { data: cardData, error: cardError } = await supabase
+          .from('cards')
+          .select('*')
+          .eq('id', itemId)
+          .eq('user_id', user.id)
+          .single()
+
+        if (cardError) throw cardError
+        if (!cardData) throw new Error('Card not found')
+
+        setFormData({
+          container_id: cardData.container_id,
+          item_type: 'card',
+          grade: cardData.grade,
+          condition: cardData.condition || '',
+          quantity: cardData.quantity || 1,
+          price: cardData.price || null,
+          cost: cardData.cost || null,
+          description: cardData.description || '',
+          // Card specific fields
+          player: cardData.player || '',
+          team: cardData.team || '',
+          manufacturer: cardData.manufacturer || '',
+          sport: cardData.sport || '',
+          card_year: cardData.year || new Date().getFullYear(),
+          number: cardData.number || '',
+          number_out_of: cardData.number_out_of || null,
+          number_type: cardData.number_out_of ? 'out_of' : 'single',
+          is_rookie: cardData.is_rookie || false,
+          // Comic specific fields (defaults)
+          title: '',
+          publisher: '',
+          issue: 1,
+          comic_year: new Date().getFullYear()
+        })
+        return
+      }
+
+      if (itemTypeFromUrl === 'comic') {
+        const { data: comicData, error: comicError } = await supabase
+          .from('comics')
+          .select('*')
+          .eq('id', itemId)
+          .eq('user_id', user.id)
+          .single()
+
+        if (comicError) throw comicError
+        if (!comicData) throw new Error('Comic not found')
+
+        setFormData({
+          container_id: comicData.container_id,
+          item_type: 'comic',
+          grade: comicData.grade,
+          condition: comicData.condition || '',
+          quantity: comicData.quantity || 1,
+          price: comicData.price || null,
+          cost: comicData.cost || null,
+          description: comicData.description || '',
+          // Card specific fields (defaults)
+          player: '',
+          team: '',
+          manufacturer: '',
+          sport: '',
+          card_year: new Date().getFullYear(),
+          number: '',
+          number_out_of: null,
+          number_type: 'single',
+          is_rookie: false,
+          // Comic specific fields
+          title: comicData.title || '',
+          publisher: comicData.publisher || '',
+          issue: comicData.issue || 1,
+          comic_year: comicData.year || new Date().getFullYear()
+        })
+        return
+      }
+
+      // If no type specified, try both tables (fallback behavior)
+      // Try to fetch from cards table first (with user_id filter)
       const { data: cardData, error: cardError } = await supabase
         .from('cards')
         .select('*')
         .eq('id', itemId)
+        .eq('user_id', user.id)
         .single()
 
+      // If card found (no error and data exists), use it
       if (!cardError && cardData) {
         setFormData({
           container_id: cardData.container_id,
@@ -109,13 +199,15 @@ export const ItemForm: React.FC = () => {
         return
       }
 
-      // Try to fetch from comics table
+      // Try to fetch from comics table (with user_id filter)
       const { data: comicData, error: comicError } = await supabase
         .from('comics')
         .select('*')
         .eq('id', itemId)
+        .eq('user_id', user.id)
         .single()
 
+      // If comic found (no error and data exists), use it
       if (!comicError && comicData) {
         setFormData({
           container_id: comicData.container_id,
@@ -145,9 +237,11 @@ export const ItemForm: React.FC = () => {
         return
       }
 
+      // If neither card nor comic found, throw error
       throw new Error('Item not found')
     } catch (error) {
       console.error('Error fetching item:', error)
+      alert(`Error loading item: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
