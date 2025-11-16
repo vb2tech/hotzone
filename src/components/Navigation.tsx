@@ -56,7 +56,6 @@ export const Navigation: React.FC = () => {
     }
   }, [])
 
-  const otherAccounts = accounts.filter(acc => acc.userId !== user?.id)
   const hasMultipleAccounts = accounts.length > 1
 
   return (
