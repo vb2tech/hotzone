@@ -367,12 +367,18 @@ export const ItemsPage: React.FC = () => {
           return next
         })
       } else {
+        // Validate required comic fields
+        if (!editingItem.title || !editingItem.publisher || !editingItem.issue || !editingItem.year) {
+          alert('Please fill in all required comic fields: Title, Publisher, Issue, and Year')
+          return
+        }
+
         const comicData = {
           ...baseData,
-          title: editingItem.title!,
-          publisher: editingItem.publisher!,
-          issue: editingItem.issue!,
-          year: editingItem.year!
+          title: editingItem.title,
+          publisher: editingItem.publisher,
+          issue: editingItem.issue,
+          year: editingItem.year
         }
 
         const { data, error } = await supabase
@@ -1397,14 +1403,22 @@ export const ItemsPage: React.FC = () => {
                                     type="number"
                                     placeholder="Issue"
                                     value={editingItem.issue || ''}
-                                    onChange={(e) => updateEditingItem(item.id, 'issue', e.target.value ? parseInt(e.target.value) : null)}
+                                    onChange={(e) => {
+                                      const value = e.target.value
+                                      const numValue = value === '' ? null : (isNaN(parseInt(value)) ? editingItem.issue : parseInt(value))
+                                      updateEditingItem(item.id, 'issue', numValue)
+                                    }}
                                     className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-full mb-1`}
                                   />
                                   <input
                                     type="number"
                                     placeholder="Year"
                                     value={editingItem.year || ''}
-                                    onChange={(e) => updateEditingItem(item.id, 'year', e.target.value ? parseInt(e.target.value) : null)}
+                                    onChange={(e) => {
+                                      const value = e.target.value
+                                      const numValue = value === '' ? null : (isNaN(parseInt(value)) ? editingItem.year : parseInt(value))
+                                      updateEditingItem(item.id, 'year', numValue)
+                                    }}
                                     className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-full`}
                                   />
                                 </>
