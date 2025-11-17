@@ -620,8 +620,9 @@ export const ItemsPage: React.FC = () => {
           bValue = b.cost ?? -Infinity
           break
         case 'profitLoss':
-          aValue = (a.price ?? 0) - (a.cost ?? 0)
-          bValue = (b.price ?? 0) - (b.cost ?? 0)
+          // Calculate P/L as (price - cost) * quantity to account for per-item values
+          aValue = ((a.price ?? 0) - (a.cost ?? 0)) * (a.quantity ?? 1)
+          bValue = ((b.price ?? 0) - (b.cost ?? 0)) * (b.quantity ?? 1)
           break
         default:
           return 0
@@ -1294,7 +1295,7 @@ export const ItemsPage: React.FC = () => {
                       className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
                     >
                       <div className="flex items-center justify-center space-x-1">
-                        <span>Cost</span>
+                        <span>Cost Per</span>
                         {sortColumn === 'cost' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
                         )}
@@ -1306,7 +1307,7 @@ export const ItemsPage: React.FC = () => {
                       className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
                     >
                       <div className="flex items-center justify-center space-x-1">
-                        <span>Price</span>
+                        <span>Price Per</span>
                         {sortColumn === 'price' && (
                           sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
                         )}
@@ -1608,7 +1609,9 @@ export const ItemsPage: React.FC = () => {
                           {(() => {
                             const price = item.price ?? 0
                             const cost = item.cost ?? 0
-                            const profitLoss = price - cost
+                            const quantity = item.quantity ?? 1
+                            // Calculate P/L as (price - cost) * quantity to account for per-item values
+                            const profitLoss = (price - cost) * quantity
                             
                             if (price === 0 && cost === 0) {
                               return <div className={`${textSizes.subtext} font-medium text-gray-500`}>-</div>
