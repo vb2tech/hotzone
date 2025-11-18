@@ -800,15 +800,63 @@ export const ItemsPage: React.FC = () => {
     setShowUploadModal(true)
     setUploadResults(null)
 
+    console.log('📤 Excel file submitted:', file.name)
+
     try {
       // Ensure containers are loaded
       if (containers.length === 0) {
         await fetchContainers()
       }
 
-      // Read the Excel file
+      // Step 1: Fetch ALL existing items from database and store in memory
+      console.log('📥 Step 1: Fetching all existing items from database...')
+      const [cardsResult, comicsResult] = await Promise.all([
+        supabase
+          .from('cards')
+          .select('*')
+          .eq('user_id', user!.id),
+        supabase
+          .from('comics')
+          .select('*')
+          .eq('user_id', user!.id)
+      ])
+
+      if (cardsResult.error) throw new Error(`Failed to fetch cards: ${cardsResult.error.message}`)
+      if (comicsResult.error) throw new Error(`Failed to fetch comics: ${comicsResult.error.message}`)
+
+      // Store all existing items in memory
+      const existingCards = cardsResult.data || []
+      const existingComics = comicsResult.data || []
+      console.log(`✅ Step 1 complete: Found ${existingCards.length} existing cards and ${existingComics.length} existing comics in database`)
+
+      // Create Maps for quick lookup by ID (handle both string and number IDs)
+      const existingCardsMap = new Map<string, any>()
+      const existingComicsMap = new Map<string, any>()
+
+      existingCards.forEach(card => {
+        const idStr = String(card.id)
+        existingCardsMap.set(idStr, card)
+        if (typeof card.id === 'number') {
+          existingCardsMap.set(card.id.toString(), card)
+        }
+      })
+
+      existingComics.forEach(comic => {
+        const idStr = String(comic.id)
+        existingComicsMap.set(idStr, comic)
+        if (typeof comic.id === 'number') {
+          existingComicsMap.set(comic.id.toString(), comic)
+        }
+      })
+
+      // Step 2: Read the Excel file and load worksheets into arrays
       const data = await file.arrayBuffer()
-      const workbook = XLSX.read(data, { type: 'array' })
+      const workbook = XLSX.read(data, { 
+        type: 'array',
+        cellText: false,
+        cellDates: false,
+        raw: false
+      })
 
       // Get Cards and Comics sheets
       const cardsSheet = workbook.Sheets['Cards']
@@ -828,205 +876,560 @@ export const ItemsPage: React.FC = () => {
         return
       }
 
+      // Step 2: Load Excel worksheets into arrays and store in memory
+      console.log('📊 Step 2: Loading Excel worksheets into arrays...')
+      const excelCards: any[] = cardsSheet ? XLSX.utils.sheet_to_json(cardsSheet) as any[] : []
+      const excelComics: any[] = comicsSheet ? XLSX.utils.sheet_to_json(comicsSheet) as any[] : []
+      console.log(`✅ Step 2 complete: Loaded ${excelCards.length} cards and ${excelComics.length} comics from Excel file`)
+
+      // Helper function to normalize values for comparison
+      const normalizeValue = (value: any): any => {
+        if (value === null || value === undefined || value === '') return null
+        if (typeof value === 'string') {
+          const trimmed = value.trim()
+          if (trimmed === '') return null
+          // Try to parse as number if it looks like one
+          const num = parseFloat(trimmed)
+          if (!isNaN(num) && isFinite(num) && trimmed === num.toString()) {
+            return num
+          }
+          return trimmed
+        }
+        if (typeof value === 'number') {
+          return isNaN(value) || !isFinite(value) ? null : value
+        }
+        if (typeof value === 'boolean') {
+          return value
+        }
+        return value
+      }
+
+      // Helper function to compare two values
+      const valuesEqual = (a: any, b: any): boolean => {
+        const normA = normalizeValue(a)
+        const normB = normalizeValue(b)
+        
+        if (normA === null && normB === null) return true
+        if (normA === null || normB === null) return false
+        
+        if (typeof normA === 'number' && typeof normB === 'number') {
+          return Math.abs(normA - normB) < 0.0001
+        }
+        
+        return normA === normB
+      }
+
+      // Helper function to check if card data has changes
+      const cardHasChanges = (existing: any, newData: any): boolean => {
+        return (
+          !valuesEqual(existing.container_id, newData.container_id) ||
+          !valuesEqual(existing.grade, newData.grade) ||
+          !valuesEqual(existing.condition, newData.condition) ||
+          !valuesEqual(existing.quantity, newData.quantity) ||
+          !valuesEqual(existing.price, newData.price) ||
+          !valuesEqual(existing.cost, newData.cost) ||
+          !valuesEqual(existing.description, newData.description) ||
+          !valuesEqual(existing.player, newData.player) ||
+          !valuesEqual(existing.team, newData.team) ||
+          !valuesEqual(existing.manufacturer, newData.manufacturer) ||
+          !valuesEqual(existing.sport, newData.sport) ||
+          !valuesEqual(existing.year, newData.year) ||
+          !valuesEqual(existing.number, newData.number) ||
+          !valuesEqual(existing.number_out_of, newData.number_out_of) ||
+          !valuesEqual(existing.is_rookie, newData.is_rookie)
+        )
+      }
+
+      // Helper function to check if comic data has changes
+      const comicHasChanges = (existing: any, newData: any): boolean => {
+        return (
+          !valuesEqual(existing.container_id, newData.container_id) ||
+          !valuesEqual(existing.grade, newData.grade) ||
+          !valuesEqual(existing.condition, newData.condition) ||
+          !valuesEqual(existing.quantity, newData.quantity) ||
+          !valuesEqual(existing.price, newData.price) ||
+          !valuesEqual(existing.cost, newData.cost) ||
+          !valuesEqual(existing.description, newData.description) ||
+          !valuesEqual(existing.title, newData.title) ||
+          !valuesEqual(existing.publisher, newData.publisher) ||
+          !valuesEqual(existing.issue, newData.issue) ||
+          !valuesEqual(existing.year, newData.year)
+        )
+      }
+
       const errors: Array<{ row: number; type: 'card' | 'comic'; message: string }> = []
+      
+      // Step 3: Compare by ID and create four lists
+      interface ItemToUpdate {
+        rowNumber: number
+        id: string
+        data: any
+      }
+      interface ItemToCreate {
+        rowNumber: number
+        data: any
+      }
+
+      const cardsToUpdate: ItemToUpdate[] = []
+      const cardsToCreate: ItemToCreate[] = []
+      const comicsToUpdate: ItemToUpdate[] = []
+      const comicsToCreate: ItemToCreate[] = []
+
+      // Helper function to create a composite key for duplicate detection
+      const createCardCompositeKey = (row: any, containerId: string): string => {
+        return JSON.stringify({
+          container_id: containerId,
+          player: row.player?.toString().trim().toLowerCase() || '',
+          manufacturer: row.manufacturer?.toString().trim().toLowerCase() || '',
+          sport: row.sport?.toString().trim().toLowerCase() || '',
+          year: row.year ? parseInt(String(row.year)) : null,
+          number: row.number?.toString().trim().toLowerCase() || '',
+          team: row.team?.toString().trim().toLowerCase() || null,
+          number_out_of: row.number_out_of ? parseInt(String(row.number_out_of)) : null,
+          is_rookie: row.is_rookie?.toString().toLowerCase() === 'yes' || row.is_rookie === true || row.is_rookie === 'true',
+          grade: row.grade ? parseFloat(String(row.grade)) : null,
+          condition: row.condition?.toString().trim().toLowerCase() || null,
+          quantity: row.quantity ? parseInt(String(row.quantity)) : 1,
+          price: row.price ? parseFloat(String(row.price)) : null,
+          cost: row.cost ? parseFloat(String(row.cost)) : null,
+          description: row.description?.toString().trim().toLowerCase() || null
+        })
+      }
+
+      const createComicCompositeKey = (row: any, containerId: string): string => {
+        return JSON.stringify({
+          container_id: containerId,
+          title: row.title?.toString().trim().toLowerCase() || '',
+          publisher: row.publisher?.toString().trim().toLowerCase() || '',
+          issue: row.issue ? parseInt(String(row.issue)) : null,
+          year: row.year ? parseInt(String(row.year)) : null,
+          grade: row.grade ? parseFloat(String(row.grade)) : null,
+          condition: row.condition?.toString().trim().toLowerCase() || null,
+          quantity: row.quantity ? parseInt(String(row.quantity)) : 1,
+          price: row.price ? parseFloat(String(row.price)) : null,
+          cost: row.cost ? parseFloat(String(row.cost)) : null,
+          description: row.description?.toString().trim().toLowerCase() || null
+        })
+      }
+
+      // Check for duplicates within Excel file
+      console.log('🔍 Step 3a: Checking for duplicate entries within Excel file...')
+      const cardKeys = new Map<string, number[]>() // key -> array of row numbers
+      const comicKeys = new Map<string, number[]>() // key -> array of row numbers
+
+      // First pass: Build composite keys for all Excel rows to detect duplicates
+      for (let i = 0; i < excelCards.length; i++) {
+        const row = excelCards[i]
+        const rowNumber = i + 2
+        
+        try {
+          const containerName = row.container_name?.toString().trim()
+          if (!containerName) continue // Skip if no container (will be caught in validation)
+          
+          const container = containers.find(c => c.name.toLowerCase() === containerName.toLowerCase())
+          if (!container) continue // Skip if container not found (will be caught in validation)
+          
+          const key = createCardCompositeKey(row, container.id)
+          if (!cardKeys.has(key)) {
+            cardKeys.set(key, [])
+          }
+          cardKeys.get(key)!.push(rowNumber)
+        } catch (error) {
+          // Skip if we can't create key
+        }
+      }
+
+      for (let i = 0; i < excelComics.length; i++) {
+        const row = excelComics[i]
+        const rowNumber = i + 2
+        
+        try {
+          const containerName = row.container_name?.toString().trim()
+          if (!containerName) continue // Skip if no container (will be caught in validation)
+          
+          const container = containers.find(c => c.name.toLowerCase() === containerName.toLowerCase())
+          if (!container) continue // Skip if container not found (will be caught in validation)
+          
+          const key = createComicCompositeKey(row, container.id)
+          if (!comicKeys.has(key)) {
+            comicKeys.set(key, [])
+          }
+          comicKeys.get(key)!.push(rowNumber)
+        } catch (error) {
+          // Skip if we can't create key
+        }
+      }
+
+      // Find duplicates (keys with more than one row number)
+      const duplicateCardRows = new Set<number>()
+      const duplicateComicRows = new Set<number>()
+
+      cardKeys.forEach((rowNumbers) => {
+        if (rowNumbers.length > 1) {
+          rowNumbers.forEach(rowNum => duplicateCardRows.add(rowNum))
+        }
+      })
+
+      comicKeys.forEach((rowNumbers) => {
+        if (rowNumbers.length > 1) {
+          rowNumbers.forEach(rowNum => duplicateComicRows.add(rowNum))
+        }
+      })
+
+      if (duplicateCardRows.size > 0 || duplicateComicRows.size > 0) {
+        console.log(`⚠️ Found duplicates: ${duplicateCardRows.size} card rows, ${duplicateComicRows.size} comic rows`)
+        duplicateCardRows.forEach(rowNum => {
+          errors.push({ row: rowNum, type: 'card', message: 'Duplicate entry: This row is identical to another row in the Excel file' })
+        })
+        duplicateComicRows.forEach(rowNum => {
+          errors.push({ row: rowNum, type: 'comic', message: 'Duplicate entry: This row is identical to another row in the Excel file' })
+        })
+      } else {
+        console.log('✅ No duplicate entries found in Excel file')
+      }
+
+      // Create composite keys for existing database items to check against items to create
+      const existingCardKeys = new Set<string>()
+      existingCards.forEach(card => {
+        const key = JSON.stringify({
+          container_id: card.container_id,
+          player: (card.player || '').toLowerCase(),
+          manufacturer: (card.manufacturer || '').toLowerCase(),
+          sport: (card.sport || '').toLowerCase(),
+          year: card.year || null,
+          number: (card.number || '').toLowerCase(),
+          team: card.team ? card.team.toLowerCase() : null,
+          number_out_of: card.number_out_of || null,
+          is_rookie: card.is_rookie || false,
+          grade: card.grade || null,
+          condition: card.condition ? card.condition.toLowerCase() : null,
+          quantity: card.quantity || 1,
+          price: card.price || null,
+          cost: card.cost || null,
+          description: card.description ? card.description.toLowerCase() : null
+        })
+        existingCardKeys.add(key)
+      })
+
+      const existingComicKeys = new Set<string>()
+      existingComics.forEach(comic => {
+        const key = JSON.stringify({
+          container_id: comic.container_id,
+          title: (comic.title || '').toLowerCase(),
+          publisher: (comic.publisher || '').toLowerCase(),
+          issue: comic.issue || null,
+          year: comic.year || null,
+          grade: comic.grade || null,
+          condition: comic.condition ? comic.condition.toLowerCase() : null,
+          quantity: comic.quantity || 1,
+          price: comic.price || null,
+          cost: comic.cost || null,
+          description: comic.description ? comic.description.toLowerCase() : null
+        })
+        existingComicKeys.add(key)
+      })
+
+      // Step 3: Compare by ID and create four lists
+      console.log('🔍 Step 3b: Comparing Excel data with database items and categorizing...')
+      // Process Cards from Excel - parse, validate, and categorize
+      for (let i = 0; i < excelCards.length; i++) {
+        const row = excelCards[i]
+        const rowNumber = i + 2 // Excel rows start at 2 (1 is header)
+        
+        // Skip if this row is a duplicate
+        if (duplicateCardRows.has(rowNumber)) {
+          continue
+        }
+        
+        try {
+          // Look up container_id by container_name
+          const containerName = row.container_name?.toString().trim()
+          if (!containerName) {
+            errors.push({ row: rowNumber, type: 'card', message: 'Missing container_name' })
+            continue
+          }
+
+          const container = containers.find(c => c.name.toLowerCase() === containerName.toLowerCase())
+          if (!container) {
+            errors.push({ row: rowNumber, type: 'card', message: `Container "${containerName}" not found` })
+            continue
+          }
+
+          const container_id = container.id
+
+          // Validate required fields
+          if (!row.player || !row.manufacturer || !row.sport || !row.year || !row.number) {
+            errors.push({ row: rowNumber, type: 'card', message: 'Missing required fields: player, manufacturer, sport, year, or number' })
+            continue
+          }
+
+          const baseData = {
+            user_id: user!.id,
+            container_id,
+            grade: (row.grade !== undefined && row.grade !== null && row.grade !== '') ? parseFloat(String(row.grade)) : null,
+            condition: (row.condition !== undefined && row.condition !== null && row.condition !== '') ? String(row.condition).trim() : null,
+            quantity: (row.quantity !== undefined && row.quantity !== null && row.quantity !== '') ? parseInt(String(row.quantity)) || 1 : 1,
+            price: (row.price !== undefined && row.price !== null && row.price !== '') ? parseFloat(String(row.price)) : null,
+            cost: (row.cost !== undefined && row.cost !== null && row.cost !== '') ? parseFloat(String(row.cost)) : null,
+            description: (row.description !== undefined && row.description !== null && row.description !== '') ? String(row.description).trim() : null
+          }
+
+          const cardData = {
+            ...baseData,
+            player: row.player.toString().trim(),
+            team: (row.team !== undefined && row.team !== null && row.team !== '') ? String(row.team).trim() : null,
+            manufacturer: row.manufacturer.toString().trim(),
+            sport: row.sport.toString().trim(),
+            year: parseInt(String(row.year)),
+            number: row.number.toString().trim(),
+            number_out_of: (row.number_out_of !== undefined && row.number_out_of !== null && row.number_out_of !== '') ? parseInt(String(row.number_out_of)) : null,
+            is_rookie: row.is_rookie?.toString().toLowerCase() === 'yes' || row.is_rookie === true || row.is_rookie === 'true'
+          }
+
+          // Check if this is an update (has id) or create (no id)
+          const rawId = row.id
+          const hasId = rawId !== undefined && rawId !== null && rawId !== '' && String(rawId).trim() !== ''
+          
+          if (hasId) {
+            // Has ID - check if it exists and has changes
+            const itemId = String(rawId).trim()
+            let existing = existingCardsMap.get(itemId)
+            if (!existing && /^\d+$/.test(itemId)) {
+              existing = existingCardsMap.get(String(parseInt(itemId)))
+            }
+
+            if (!existing) {
+              errors.push({ row: rowNumber, type: 'card', message: `No card found with id: ${itemId} (or it belongs to another user)` })
+              continue
+            }
+
+            // Check if there are changes
+            if (cardHasChanges(existing, cardData)) {
+              cardsToUpdate.push({ rowNumber, id: itemId, data: cardData })
+            }
+            // If no changes, skip (don't add to update list)
+          } else {
+            // No ID - check if this item already exists in database using composite key
+            const cardKey = createCardCompositeKey(row, container_id)
+            if (existingCardKeys.has(cardKey)) {
+              errors.push({ row: rowNumber, type: 'card', message: 'Cannot create this row - duplicate error: item may already exist in database' })
+              continue
+            }
+            
+            // No ID - this is a new card to create
+            cardsToCreate.push({ rowNumber, data: cardData })
+          }
+        } catch (error: any) {
+          errors.push({ row: rowNumber, type: 'card', message: `Error: ${error.message || 'Unknown error'}` })
+        }
+      }
+
+      // Process Comics from Excel - parse, validate, and categorize
+      for (let i = 0; i < excelComics.length; i++) {
+        const row = excelComics[i]
+        const rowNumber = i + 2 // Excel rows start at 2 (1 is header)
+        
+        // Skip if this row is a duplicate
+        if (duplicateComicRows.has(rowNumber)) {
+          continue
+        }
+        
+        try {
+          // Look up container_id by container_name
+          const containerName = row.container_name?.toString().trim()
+          if (!containerName) {
+            errors.push({ row: rowNumber, type: 'comic', message: 'Missing container_name' })
+            continue
+          }
+
+          const container = containers.find(c => c.name.toLowerCase() === containerName.toLowerCase())
+          if (!container) {
+            errors.push({ row: rowNumber, type: 'comic', message: `Container "${containerName}" not found` })
+            continue
+          }
+
+          const container_id = container.id
+
+          // Validate required fields
+          if (!row.title || !row.publisher || !row.issue || !row.year) {
+            errors.push({ row: rowNumber, type: 'comic', message: 'Missing required fields: title, publisher, issue, or year' })
+            continue
+          }
+
+          const baseData = {
+            user_id: user!.id,
+            container_id,
+            grade: (row.grade !== undefined && row.grade !== null && row.grade !== '') ? parseFloat(String(row.grade)) : null,
+            condition: (row.condition !== undefined && row.condition !== null && row.condition !== '') ? String(row.condition).trim() : null,
+            quantity: (row.quantity !== undefined && row.quantity !== null && row.quantity !== '') ? parseInt(String(row.quantity)) || 1 : 1,
+            price: (row.price !== undefined && row.price !== null && row.price !== '') ? parseFloat(String(row.price)) : null,
+            cost: (row.cost !== undefined && row.cost !== null && row.cost !== '') ? parseFloat(String(row.cost)) : null,
+            description: (row.description !== undefined && row.description !== null && row.description !== '') ? String(row.description).trim() : null
+          }
+
+          const comicData = {
+            ...baseData,
+            title: row.title.toString().trim(),
+            publisher: row.publisher.toString().trim(),
+            issue: parseInt(String(row.issue)),
+            year: parseInt(String(row.year))
+          }
+
+          // Check if this is an update (has id) or create (no id)
+          const rawId = row.id
+          const hasId = rawId !== undefined && rawId !== null && rawId !== '' && String(rawId).trim() !== ''
+          
+          if (hasId) {
+            // Has ID - check if it exists and has changes
+            const itemId = String(rawId).trim()
+            let existing = existingComicsMap.get(itemId)
+            if (!existing && /^\d+$/.test(itemId)) {
+              existing = existingComicsMap.get(String(parseInt(itemId)))
+            }
+
+            if (!existing) {
+              errors.push({ row: rowNumber, type: 'comic', message: `No comic found with id: ${itemId} (or it belongs to another user)` })
+              continue
+            }
+
+            // Check if there are changes
+            if (comicHasChanges(existing, comicData)) {
+              comicsToUpdate.push({ rowNumber, id: itemId, data: comicData })
+            }
+            // If no changes, skip (don't add to update list)
+          } else {
+            // No ID - check if this item already exists in database using composite key
+            const comicKey = createComicCompositeKey(row, container_id)
+            if (existingComicKeys.has(comicKey)) {
+              errors.push({ row: rowNumber, type: 'comic', message: 'Cannot create this row - duplicate error: item may already exist in database' })
+              continue
+            }
+            
+            // No ID - this is a new comic to create
+            comicsToCreate.push({ rowNumber, data: comicData })
+          }
+        } catch (error: any) {
+          errors.push({ row: rowNumber, type: 'comic', message: `Error: ${error.message || 'Unknown error'}` })
+        }
+      }
+
+      console.log(`✅ Step 3 complete: Categorized items - Cards to update: ${cardsToUpdate.length}, Cards to create: ${cardsToCreate.length}, Comics to update: ${comicsToUpdate.length}, Comics to create: ${comicsToCreate.length}`)
+
+      // Step 4: Process all four lists - update and create items
+      console.log('💾 Step 4: Processing updates and creates...')
       let cardsCreated = 0
       let cardsUpdated = 0
       let comicsCreated = 0
       let comicsUpdated = 0
 
-      // Process Cards sheet
-      if (cardsSheet) {
-        const cardsData = XLSX.utils.sheet_to_json(cardsSheet) as any[]
-        
-        for (let i = 0; i < cardsData.length; i++) {
-          const row = cardsData[i]
-          const rowNumber = i + 2 // Excel rows start at 2 (1 is header)
-          
-          try {
-            // Look up container_id by container_name
-            const containerName = row.container_name?.toString().trim()
-            if (!containerName) {
-              errors.push({ row: rowNumber, type: 'card', message: 'Missing container_name' })
-              continue
-            }
+      // Process cards to update
+      console.log(`  → Processing ${cardsToUpdate.length} card updates...`)
+      for (const cardToUpdate of cardsToUpdate) {
+        try {
+          const updateId = /^\d+$/.test(cardToUpdate.id) ? parseInt(cardToUpdate.id, 10) : cardToUpdate.id
+          const { data: updateData, error } = await supabase
+            .from('cards')
+            .update(cardToUpdate.data)
+            .eq('id', updateId)
+            .eq('user_id', user!.id)
+            .select()
 
-            const container = containers.find(c => c.name.toLowerCase() === containerName.toLowerCase())
-            if (!container) {
-              errors.push({ row: rowNumber, type: 'card', message: `Container "${containerName}" not found` })
-              continue
-            }
-
-            const container_id = container.id
-
-            // Validate required fields
-            if (!row.player || !row.manufacturer || !row.sport || !row.year || !row.number) {
-              errors.push({ row: rowNumber, type: 'card', message: 'Missing required fields: player, manufacturer, sport, year, or number' })
-              continue
-            }
-
-            const baseData = {
-              container_id,
-              grade: row.grade ? parseFloat(row.grade) : null,
-              condition: row.condition?.toString().trim() || null,
-              quantity: parseInt(row.quantity) || 1,
-              price: row.price ? parseFloat(row.price) : null,
-              cost: row.cost ? parseFloat(row.cost) : null,
-              description: row.description?.toString().trim() || null
-            }
-
-            const cardData = {
-              ...baseData,
-              player: row.player.toString().trim(),
-              team: row.team?.toString().trim() || null,
-              manufacturer: row.manufacturer.toString().trim(),
-              sport: row.sport.toString().trim(),
-              year: parseInt(row.year),
-              number: row.number.toString().trim(),
-              number_out_of: row.number_out_of ? parseInt(row.number_out_of) : null,
-              is_rookie: row.is_rookie?.toString().toLowerCase() === 'yes' || row.is_rookie === true
-            }
-
-            // Check if this is an update (has id) or create (no id)
-            const hasId = row.id !== undefined && row.id !== null && row.id !== '' && String(row.id).trim() !== ''
-            
-            if (hasId) {
-              // Update existing card
-              // Ensure id is a string (Excel might read it as a number)
-              const itemId = String(row.id).trim()
-              
-              const { data: updateData, error } = await supabase
-                .from('cards')
-                .update(cardData)
-                .eq('id', itemId)
-                .eq('user_id', user!.id)
-                .select()
-
-              if (error) {
-                errors.push({ row: rowNumber, type: 'card', message: `Update failed: ${error.message}` })
-              } else if (!updateData || updateData.length === 0) {
-                errors.push({ row: rowNumber, type: 'card', message: `No card found with id: ${itemId} (or it belongs to another user)` })
-              } else {
-                cardsUpdated++
-              }
-            } else {
-              // Create new card
-              const { error } = await supabase
-                .from('cards')
-                .insert([cardData])
-
-              if (error) {
-                if (error.message.includes('duplicate') || error.code === '23505') {
-                  errors.push({ row: rowNumber, type: 'card', message: 'Duplicate card (same player, manufacturer, sport, year, number already exists)' })
-                } else {
-                  errors.push({ row: rowNumber, type: 'card', message: `Create failed: ${error.message}` })
-                }
-              } else {
-                cardsCreated++
-              }
-            }
-          } catch (error: any) {
-            errors.push({ row: rowNumber, type: 'card', message: `Error: ${error.message || 'Unknown error'}` })
+          if (error) {
+            errors.push({ row: cardToUpdate.rowNumber, type: 'card', message: `Update failed: ${error.message}` })
+          } else if (!updateData || updateData.length === 0) {
+            errors.push({ row: cardToUpdate.rowNumber, type: 'card', message: `No card found with id: ${cardToUpdate.id} (or it belongs to another user)` })
+          } else {
+            cardsUpdated++
           }
+        } catch (error: any) {
+          errors.push({ row: cardToUpdate.rowNumber, type: 'card', message: `Error: ${error.message || 'Unknown error'}` })
         }
       }
 
-      // Process Comics sheet
-      if (comicsSheet) {
-        const comicsData = XLSX.utils.sheet_to_json(comicsSheet) as any[]
-        
-        for (let i = 0; i < comicsData.length; i++) {
-          const row = comicsData[i]
-          const rowNumber = i + 2 // Excel rows start at 2 (1 is header)
-          
-          try {
-            // Look up container_id by container_name
-            const containerName = row.container_name?.toString().trim()
-            if (!containerName) {
-              errors.push({ row: rowNumber, type: 'comic', message: 'Missing container_name' })
-              continue
-            }
+      // Process comics to update
+      console.log(`  → Processing ${comicsToUpdate.length} comic updates...`)
+      for (const comicToUpdate of comicsToUpdate) {
+        try {
+          const updateId = /^\d+$/.test(comicToUpdate.id) ? parseInt(comicToUpdate.id, 10) : comicToUpdate.id
+          const { data: updateData, error } = await supabase
+            .from('comics')
+            .update(comicToUpdate.data)
+            .eq('id', updateId)
+            .eq('user_id', user!.id)
+            .select()
 
-            const container = containers.find(c => c.name.toLowerCase() === containerName.toLowerCase())
-            if (!container) {
-              errors.push({ row: rowNumber, type: 'comic', message: `Container "${containerName}" not found` })
-              continue
-            }
-
-            const container_id = container.id
-
-            // Validate required fields
-            if (!row.title || !row.publisher || !row.issue || !row.year) {
-              errors.push({ row: rowNumber, type: 'comic', message: 'Missing required fields: title, publisher, issue, or year' })
-              continue
-            }
-
-            const baseData = {
-              container_id,
-              grade: row.grade ? parseFloat(row.grade) : null,
-              condition: row.condition?.toString().trim() || null,
-              quantity: parseInt(row.quantity) || 1,
-              price: row.price ? parseFloat(row.price) : null,
-              cost: row.cost ? parseFloat(row.cost) : null,
-              description: row.description?.toString().trim() || null
-            }
-
-            const comicData = {
-              ...baseData,
-              title: row.title.toString().trim(),
-              publisher: row.publisher.toString().trim(),
-              issue: parseInt(row.issue),
-              year: parseInt(row.year)
-            }
-
-            // Check if this is an update (has id) or create (no id)
-            const hasId = row.id !== undefined && row.id !== null && row.id !== '' && String(row.id).trim() !== ''
-            
-            if (hasId) {
-              // Update existing comic
-              // Ensure id is a string (Excel might read it as a number)
-              const itemId = String(row.id).trim()
-              
-              const { data: updateData, error } = await supabase
-                .from('comics')
-                .update(comicData)
-                .eq('id', itemId)
-                .eq('user_id', user!.id)
-                .select()
-
-              if (error) {
-                errors.push({ row: rowNumber, type: 'comic', message: `Update failed: ${error.message}` })
-              } else if (!updateData || updateData.length === 0) {
-                errors.push({ row: rowNumber, type: 'comic', message: `No comic found with id: ${itemId} (or it belongs to another user)` })
-              } else {
-                comicsUpdated++
-              }
-            } else {
-              // Create new comic
-              const { error } = await supabase
-                .from('comics')
-                .insert([comicData])
-
-              if (error) {
-                if (error.message.includes('duplicate') || error.code === '23505') {
-                  errors.push({ row: rowNumber, type: 'comic', message: 'Duplicate comic (same title, publisher, issue, year already exists)' })
-                } else {
-                  errors.push({ row: rowNumber, type: 'comic', message: `Create failed: ${error.message}` })
-                }
-              } else {
-                comicsCreated++
-              }
-            }
-          } catch (error: any) {
-            errors.push({ row: rowNumber, type: 'comic', message: `Error: ${error.message || 'Unknown error'}` })
+          if (error) {
+            errors.push({ row: comicToUpdate.rowNumber, type: 'comic', message: `Update failed: ${error.message}` })
+          } else if (!updateData || updateData.length === 0) {
+            errors.push({ row: comicToUpdate.rowNumber, type: 'comic', message: `No comic found with id: ${comicToUpdate.id} (or it belongs to another user)` })
+          } else {
+            comicsUpdated++
           }
+        } catch (error: any) {
+          errors.push({ row: comicToUpdate.rowNumber, type: 'comic', message: `Error: ${error.message || 'Unknown error'}` })
         }
       }
+
+      // Process cards to create
+      console.log(`  → Processing ${cardsToCreate.length} card creates...`)
+      for (const cardToCreate of cardsToCreate) {
+        try {
+          const { error } = await supabase
+            .from('cards')
+            .insert([cardToCreate.data])
+
+          if (error) {
+            if (error.message.includes('duplicate') || error.code === '23505') {
+              errors.push({ row: cardToCreate.rowNumber, type: 'card', message: 'Duplicate card (same player, manufacturer, sport, year, number already exists)' })
+            } else {
+              errors.push({ row: cardToCreate.rowNumber, type: 'card', message: `Create failed: ${error.message}` })
+            }
+          } else {
+            cardsCreated++
+          }
+        } catch (error: any) {
+          errors.push({ row: cardToCreate.rowNumber, type: 'card', message: `Error: ${error.message || 'Unknown error'}` })
+        }
+      }
+
+      // Process comics to create
+      console.log(`  → Processing ${comicsToCreate.length} comic creates...`)
+      for (const comicToCreate of comicsToCreate) {
+        try {
+          const { error } = await supabase
+            .from('comics')
+            .insert([comicToCreate.data])
+
+          if (error) {
+            if (error.message.includes('duplicate') || error.code === '23505') {
+              errors.push({ row: comicToCreate.rowNumber, type: 'comic', message: 'Duplicate comic (same title, publisher, issue, year already exists)' })
+            } else {
+              errors.push({ row: comicToCreate.rowNumber, type: 'comic', message: `Create failed: ${error.message}` })
+            }
+          } else {
+            comicsCreated++
+          }
+        } catch (error: any) {
+          errors.push({ row: comicToCreate.rowNumber, type: 'comic', message: `Error: ${error.message || 'Unknown error'}` })
+        }
+      }
+
+      // Step 5: Show results
+      console.log('📊 Step 5: Upload complete!')
+      console.log(`  → Results: ${cardsUpdated} cards updated, ${cardsCreated} cards created, ${comicsUpdated} comics updated, ${comicsCreated} comics created`)
+      console.log(`  → Errors: ${errors.length}`)
 
       // Determine result status
+      // Note: If we reach here, the Excel file was successfully parsed
+      // - "Upload failed" is only shown if Excel couldn't be parsed (catch block)
+      // - "Partial success" is shown if file was parsed successfully but there are errors (even if nothing was processed)
+      // - "Success" is shown if file was parsed and there are no errors
       const totalProcessed = cardsCreated + cardsUpdated + comicsCreated + comicsUpdated
       const hasErrors = errors.length > 0
-      const success = totalProcessed > 0 && !hasErrors
-      const partial = totalProcessed > 0 && hasErrors
+      // Success: file was parsed successfully and no errors
+      // Partial: file was parsed successfully but there are errors (regardless of items processed)
+      const success = !hasErrors
+      const partial = hasErrors // If file was parsed and has errors, it's partial success (not a failure)
 
       setUploadResults({
         success,
@@ -1141,14 +1544,14 @@ export const ItemsPage: React.FC = () => {
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             <Download className="h-4 w-4 mr-2" />
-            Download Excel
+            Download
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             <Upload className="h-4 w-4 mr-2" />
-            Upload Excel
+            Upload
           </button>
           <input
             ref={fileInputRef}
@@ -1714,13 +2117,15 @@ export const ItemsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedItems.map((item) => {
+                  {paginatedItems.map((item, index) => {
                     const isEditing = item.isEditing || editingItems.has(item.id)
                     const editingItem = editingItems.get(item.id) || item
                     const inputSize = viewSize === 'small' ? 'text-xs px-1 py-0.5' : viewSize === 'large' ? 'text-base px-2 py-1' : 'text-sm px-1.5 py-1'
                     
+                    // Use a combination of item_type and id to ensure unique keys
+                    // (in case cards and comics have overlapping IDs)
                     return (
-                      <tr key={item.id} className={`hover:bg-gray-50 ${isEditing ? 'bg-yellow-50' : ''}`}>
+                      <tr key={`${item.item_type}-${item.id}-${index}`} className={`hover:bg-gray-50 ${isEditing ? 'bg-yellow-50' : ''}`}>
                       <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full ${viewSize === 'small' ? 'text-xs' : viewSize === 'large' ? 'text-base' : 'text-sm'} font-medium ${
                           item.item_type === 'card' 
@@ -2203,26 +2608,43 @@ export const ItemsPage: React.FC = () => {
                   {uploadResults.success && (
                     <div className="mb-4">
                       <div className="bg-green-50 border border-green-200 rounded-md p-4">
-                        <p className="text-green-800 font-medium mb-2">All items processed successfully!</p>
-                        <div className="text-sm text-green-700 space-y-1">
-                          {uploadResults.cardsCreated > 0 && <p>• {uploadResults.cardsCreated} card(s) created</p>}
-                          {uploadResults.cardsUpdated > 0 && <p>• {uploadResults.cardsUpdated} card(s) updated</p>}
-                          {uploadResults.comicsCreated > 0 && <p>• {uploadResults.comicsCreated} comic(s) created</p>}
-                          {uploadResults.comicsUpdated > 0 && <p>• {uploadResults.comicsUpdated} comic(s) updated</p>}
-                        </div>
+                        {uploadResults.cardsCreated === 0 && uploadResults.cardsUpdated === 0 && 
+                         uploadResults.comicsCreated === 0 && uploadResults.comicsUpdated === 0 ? (
+                          <p className="text-green-800 font-medium">Upload successful! All items are already up to date - no changes were needed.</p>
+                        ) : (
+                          <>
+                            <p className="text-green-800 font-medium mb-2">All items processed successfully!</p>
+                            <div className="text-sm text-green-700 space-y-1">
+                              {uploadResults.cardsCreated > 0 && <p>• {uploadResults.cardsCreated} card(s) created</p>}
+                              {uploadResults.cardsUpdated > 0 && <p>• {uploadResults.cardsUpdated} card(s) updated</p>}
+                              {uploadResults.comicsCreated > 0 && <p>• {uploadResults.comicsCreated} comic(s) created</p>}
+                              {uploadResults.comicsUpdated > 0 && <p>• {uploadResults.comicsUpdated} comic(s) updated</p>}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
 
                   {uploadResults.partial && (
                     <div className="mb-4">
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
-                        <p className="text-yellow-800 font-medium mb-2">Some items processed successfully:</p>
-                        <div className="text-sm text-yellow-700 space-y-1">
-                          {uploadResults.cardsCreated > 0 && <p>• {uploadResults.cardsCreated} card(s) created</p>}
-                          {uploadResults.cardsUpdated > 0 && <p>• {uploadResults.cardsUpdated} card(s) updated</p>}
-                          {uploadResults.comicsCreated > 0 && <p>• {uploadResults.comicsCreated} comic(s) created</p>}
-                          {uploadResults.comicsUpdated > 0 && <p>• {uploadResults.comicsUpdated} comic(s) updated</p>}
+                      <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
+                        <p className="text-green-800 font-medium mb-2">File upload & parse successful</p>
+                        <div className="text-sm text-green-700 space-y-1">
+                          {(uploadResults.cardsCreated > 0 || uploadResults.cardsUpdated > 0 || 
+                            uploadResults.comicsCreated > 0 || uploadResults.comicsUpdated > 0) ? (
+                            <>
+                              {uploadResults.cardsCreated > 0 && <p>• {uploadResults.cardsCreated} card(s) created</p>}
+                              {uploadResults.cardsUpdated > 0 && <p>• {uploadResults.cardsUpdated} card(s) updated</p>}
+                              {uploadResults.comicsCreated > 0 && <p>• {uploadResults.comicsCreated} comic(s) created</p>}
+                              {uploadResults.comicsUpdated > 0 && <p>• {uploadResults.comicsUpdated} comic(s) updated</p>}
+                            </>
+                          ) : (
+                            <>
+                              <p>• 0 records to be updated</p>
+                              <p>• 0 records to be created</p>
+                            </>
+                          )}
                         </div>
                       </div>
                       {uploadResults.errors.length > 0 && (
