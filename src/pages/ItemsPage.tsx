@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, Container, Zone } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Layers, Plus, Save, X, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Filter, X as XIcon, Download } from 'lucide-react'
+import { Layers, Plus, Save, X, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Filter, X as XIcon, Download, Upload } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 type ViewSize = 'small' | 'medium' | 'large'
@@ -64,6 +64,18 @@ export const ItemsPage: React.FC = () => {
     return (saved as ViewSize) || 'medium'
   })
   const [showFilters, setShowFilters] = useState(false)
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploadResults, setUploadResults] = useState<{
+    success: boolean
+    partial: boolean
+    cardsCreated: number
+    cardsUpdated: number
+    comicsCreated: number
+    comicsUpdated: number
+    errors: Array<{ row: number; type: 'card' | 'comic'; message: string }>
+  } | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
   const [filters, setFilters] = useState({
     type: '' as '' | 'card' | 'comic',
     name: '',
@@ -710,13 +722,11 @@ export const ItemsPage: React.FC = () => {
       const cards = itemsToExport.filter(item => item.item_type === 'card')
       const comics = itemsToExport.filter(item => item.item_type === 'comic')
       
-      // Prepare card data (removed user_id, zone_id, container_id - will be looked up by name on import)
+      // Prepare card data (removed user_id, zone_id, container_id, created_at, updated_at - will be looked up by name on import)
       const cardData = cards.map(card => ({
         id: card.id,
         container_name: card.container?.name || '',
         zone_name: card.container?.zone?.name || '',
-        created_at: card.created_at,
-        updated_at: card.updated_at,
         grade: card.grade ?? '',
         condition: card.condition || '',
         quantity: card.quantity,
@@ -733,13 +743,11 @@ export const ItemsPage: React.FC = () => {
         description: card.description || ''
       }))
       
-      // Prepare comic data (removed user_id, zone_id, container_id - will be looked up by name on import)
+      // Prepare comic data (removed user_id, zone_id, container_id, created_at, updated_at - will be looked up by name on import)
       const comicData = comics.map(comic => ({
         id: comic.id,
         container_name: comic.container?.name || '',
         zone_name: comic.container?.zone?.name || '',
-        created_at: comic.created_at,
-        updated_at: comic.updated_at,
         grade: comic.grade ?? '',
         condition: comic.condition || '',
         quantity: comic.quantity,
@@ -776,6 +784,280 @@ export const ItemsPage: React.FC = () => {
     } catch (error) {
       console.error('Error exporting to Excel:', error)
       alert('Failed to export items. Please try again.')
+    }
+  }
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!user) {
+      alert('You must be logged in to upload items')
+      return
+    }
+
+    setIsUploading(true)
+    setShowUploadModal(true)
+    setUploadResults(null)
+
+    try {
+      // Ensure containers are loaded
+      if (containers.length === 0) {
+        await fetchContainers()
+      }
+
+      // Read the Excel file
+      const data = await file.arrayBuffer()
+      const workbook = XLSX.read(data, { type: 'array' })
+
+      // Get Cards and Comics sheets
+      const cardsSheet = workbook.Sheets['Cards']
+      const comicsSheet = workbook.Sheets['Comics']
+
+      if (!cardsSheet && !comicsSheet) {
+        setUploadResults({
+          success: false,
+          partial: false,
+          cardsCreated: 0,
+          cardsUpdated: 0,
+          comicsCreated: 0,
+          comicsUpdated: 0,
+          errors: [{ row: 0, type: 'card', message: 'Excel file must contain "Cards" and/or "Comics" sheets' }]
+        })
+        setIsUploading(false)
+        return
+      }
+
+      const errors: Array<{ row: number; type: 'card' | 'comic'; message: string }> = []
+      let cardsCreated = 0
+      let cardsUpdated = 0
+      let comicsCreated = 0
+      let comicsUpdated = 0
+
+      // Process Cards sheet
+      if (cardsSheet) {
+        const cardsData = XLSX.utils.sheet_to_json(cardsSheet) as any[]
+        
+        for (let i = 0; i < cardsData.length; i++) {
+          const row = cardsData[i]
+          const rowNumber = i + 2 // Excel rows start at 2 (1 is header)
+          
+          try {
+            // Look up container_id by container_name
+            const containerName = row.container_name?.toString().trim()
+            if (!containerName) {
+              errors.push({ row: rowNumber, type: 'card', message: 'Missing container_name' })
+              continue
+            }
+
+            const container = containers.find(c => c.name.toLowerCase() === containerName.toLowerCase())
+            if (!container) {
+              errors.push({ row: rowNumber, type: 'card', message: `Container "${containerName}" not found` })
+              continue
+            }
+
+            const container_id = container.id
+
+            // Validate required fields
+            if (!row.player || !row.manufacturer || !row.sport || !row.year || !row.number) {
+              errors.push({ row: rowNumber, type: 'card', message: 'Missing required fields: player, manufacturer, sport, year, or number' })
+              continue
+            }
+
+            const baseData = {
+              container_id,
+              grade: row.grade ? parseFloat(row.grade) : null,
+              condition: row.condition?.toString().trim() || null,
+              quantity: parseInt(row.quantity) || 1,
+              price: row.price ? parseFloat(row.price) : null,
+              cost: row.cost ? parseFloat(row.cost) : null,
+              description: row.description?.toString().trim() || null
+            }
+
+            const cardData = {
+              ...baseData,
+              player: row.player.toString().trim(),
+              team: row.team?.toString().trim() || null,
+              manufacturer: row.manufacturer.toString().trim(),
+              sport: row.sport.toString().trim(),
+              year: parseInt(row.year),
+              number: row.number.toString().trim(),
+              number_out_of: row.number_out_of ? parseInt(row.number_out_of) : null,
+              is_rookie: row.is_rookie?.toString().toLowerCase() === 'yes' || row.is_rookie === true
+            }
+
+            // Check if this is an update (has id) or create (no id)
+            const hasId = row.id !== undefined && row.id !== null && row.id !== '' && String(row.id).trim() !== ''
+            
+            if (hasId) {
+              // Update existing card
+              // Ensure id is a string (Excel might read it as a number)
+              const itemId = String(row.id).trim()
+              
+              const { data: updateData, error } = await supabase
+                .from('cards')
+                .update(cardData)
+                .eq('id', itemId)
+                .eq('user_id', user!.id)
+                .select()
+
+              if (error) {
+                errors.push({ row: rowNumber, type: 'card', message: `Update failed: ${error.message}` })
+              } else if (!updateData || updateData.length === 0) {
+                errors.push({ row: rowNumber, type: 'card', message: `No card found with id: ${itemId} (or it belongs to another user)` })
+              } else {
+                cardsUpdated++
+              }
+            } else {
+              // Create new card
+              const { error } = await supabase
+                .from('cards')
+                .insert([cardData])
+
+              if (error) {
+                if (error.message.includes('duplicate') || error.code === '23505') {
+                  errors.push({ row: rowNumber, type: 'card', message: 'Duplicate card (same player, manufacturer, sport, year, number already exists)' })
+                } else {
+                  errors.push({ row: rowNumber, type: 'card', message: `Create failed: ${error.message}` })
+                }
+              } else {
+                cardsCreated++
+              }
+            }
+          } catch (error: any) {
+            errors.push({ row: rowNumber, type: 'card', message: `Error: ${error.message || 'Unknown error'}` })
+          }
+        }
+      }
+
+      // Process Comics sheet
+      if (comicsSheet) {
+        const comicsData = XLSX.utils.sheet_to_json(comicsSheet) as any[]
+        
+        for (let i = 0; i < comicsData.length; i++) {
+          const row = comicsData[i]
+          const rowNumber = i + 2 // Excel rows start at 2 (1 is header)
+          
+          try {
+            // Look up container_id by container_name
+            const containerName = row.container_name?.toString().trim()
+            if (!containerName) {
+              errors.push({ row: rowNumber, type: 'comic', message: 'Missing container_name' })
+              continue
+            }
+
+            const container = containers.find(c => c.name.toLowerCase() === containerName.toLowerCase())
+            if (!container) {
+              errors.push({ row: rowNumber, type: 'comic', message: `Container "${containerName}" not found` })
+              continue
+            }
+
+            const container_id = container.id
+
+            // Validate required fields
+            if (!row.title || !row.publisher || !row.issue || !row.year) {
+              errors.push({ row: rowNumber, type: 'comic', message: 'Missing required fields: title, publisher, issue, or year' })
+              continue
+            }
+
+            const baseData = {
+              container_id,
+              grade: row.grade ? parseFloat(row.grade) : null,
+              condition: row.condition?.toString().trim() || null,
+              quantity: parseInt(row.quantity) || 1,
+              price: row.price ? parseFloat(row.price) : null,
+              cost: row.cost ? parseFloat(row.cost) : null,
+              description: row.description?.toString().trim() || null
+            }
+
+            const comicData = {
+              ...baseData,
+              title: row.title.toString().trim(),
+              publisher: row.publisher.toString().trim(),
+              issue: parseInt(row.issue),
+              year: parseInt(row.year)
+            }
+
+            // Check if this is an update (has id) or create (no id)
+            const hasId = row.id !== undefined && row.id !== null && row.id !== '' && String(row.id).trim() !== ''
+            
+            if (hasId) {
+              // Update existing comic
+              // Ensure id is a string (Excel might read it as a number)
+              const itemId = String(row.id).trim()
+              
+              const { data: updateData, error } = await supabase
+                .from('comics')
+                .update(comicData)
+                .eq('id', itemId)
+                .eq('user_id', user!.id)
+                .select()
+
+              if (error) {
+                errors.push({ row: rowNumber, type: 'comic', message: `Update failed: ${error.message}` })
+              } else if (!updateData || updateData.length === 0) {
+                errors.push({ row: rowNumber, type: 'comic', message: `No comic found with id: ${itemId} (or it belongs to another user)` })
+              } else {
+                comicsUpdated++
+              }
+            } else {
+              // Create new comic
+              const { error } = await supabase
+                .from('comics')
+                .insert([comicData])
+
+              if (error) {
+                if (error.message.includes('duplicate') || error.code === '23505') {
+                  errors.push({ row: rowNumber, type: 'comic', message: 'Duplicate comic (same title, publisher, issue, year already exists)' })
+                } else {
+                  errors.push({ row: rowNumber, type: 'comic', message: `Create failed: ${error.message}` })
+                }
+              } else {
+                comicsCreated++
+              }
+            }
+          } catch (error: any) {
+            errors.push({ row: rowNumber, type: 'comic', message: `Error: ${error.message || 'Unknown error'}` })
+          }
+        }
+      }
+
+      // Determine result status
+      const totalProcessed = cardsCreated + cardsUpdated + comicsCreated + comicsUpdated
+      const hasErrors = errors.length > 0
+      const success = totalProcessed > 0 && !hasErrors
+      const partial = totalProcessed > 0 && hasErrors
+
+      setUploadResults({
+        success,
+        partial,
+        cardsCreated,
+        cardsUpdated,
+        comicsCreated,
+        comicsUpdated,
+        errors
+      })
+
+      // Refresh items list if any were created/updated
+      if (totalProcessed > 0) {
+        fetchItems()
+      }
+    } catch (error: any) {
+      setUploadResults({
+        success: false,
+        partial: false,
+        cardsCreated: 0,
+        cardsUpdated: 0,
+        comicsCreated: 0,
+        comicsUpdated: 0,
+        errors: [{ row: 0, type: 'card', message: `Failed to process file: ${error.message || 'Unknown error'}` }]
+      })
+    } finally {
+      setIsUploading(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
   
@@ -861,6 +1143,20 @@ export const ItemsPage: React.FC = () => {
             <Download className="h-4 w-4 mr-2" />
             Download Excel
           </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Excel
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
           <Link
             to="/items/new"
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -1874,6 +2170,110 @@ export const ItemsPage: React.FC = () => {
               <Plus className="h-4 w-4 mr-2" />
               Add Item
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Results Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onClick={() => !isUploading && setShowUploadModal(false)}>
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white" onClick={(e) => e.stopPropagation()}>
+            <div className="mt-3">
+              {isUploading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-4 text-gray-600">Processing upload...</p>
+                </div>
+              ) : uploadResults ? (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-gray-900">
+                      {uploadResults.success && 'Upload Successful'}
+                      {uploadResults.partial && 'Partial Success'}
+                      {!uploadResults.success && !uploadResults.partial && 'Upload Failed'}
+                    </h3>
+                    <button
+                      onClick={() => setShowUploadModal(false)}
+                      className="text-gray-400 hover:text-gray-500"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+
+                  {uploadResults.success && (
+                    <div className="mb-4">
+                      <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                        <p className="text-green-800 font-medium mb-2">All items processed successfully!</p>
+                        <div className="text-sm text-green-700 space-y-1">
+                          {uploadResults.cardsCreated > 0 && <p>• {uploadResults.cardsCreated} card(s) created</p>}
+                          {uploadResults.cardsUpdated > 0 && <p>• {uploadResults.cardsUpdated} card(s) updated</p>}
+                          {uploadResults.comicsCreated > 0 && <p>• {uploadResults.comicsCreated} comic(s) created</p>}
+                          {uploadResults.comicsUpdated > 0 && <p>• {uploadResults.comicsUpdated} comic(s) updated</p>}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {uploadResults.partial && (
+                    <div className="mb-4">
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
+                        <p className="text-yellow-800 font-medium mb-2">Some items processed successfully:</p>
+                        <div className="text-sm text-yellow-700 space-y-1">
+                          {uploadResults.cardsCreated > 0 && <p>• {uploadResults.cardsCreated} card(s) created</p>}
+                          {uploadResults.cardsUpdated > 0 && <p>• {uploadResults.cardsUpdated} card(s) updated</p>}
+                          {uploadResults.comicsCreated > 0 && <p>• {uploadResults.comicsCreated} comic(s) created</p>}
+                          {uploadResults.comicsUpdated > 0 && <p>• {uploadResults.comicsUpdated} comic(s) updated</p>}
+                        </div>
+                      </div>
+                      {uploadResults.errors.length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                          <p className="text-red-800 font-medium mb-2">Errors ({uploadResults.errors.length}):</p>
+                          <div className="max-h-64 overflow-y-auto">
+                            <ul className="text-sm text-red-700 space-y-1">
+                              {uploadResults.errors.map((error, idx) => (
+                                <li key={idx}>
+                                  Row {error.row} ({error.type}): {error.message}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!uploadResults.success && !uploadResults.partial && (
+                    <div className="mb-4">
+                      <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                        <p className="text-red-800 font-medium mb-2">Upload failed:</p>
+                        {uploadResults.errors.length > 0 ? (
+                          <div className="max-h-64 overflow-y-auto">
+                            <ul className="text-sm text-red-700 space-y-1">
+                              {uploadResults.errors.map((error, idx) => (
+                                <li key={idx}>
+                                  {error.row > 0 ? `Row ${error.row} (${error.type}): ` : ''}{error.message}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-red-700">Unknown error occurred</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      onClick={() => setShowUploadModal(false)}
+                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </div>
           </div>
         </div>
       )}
