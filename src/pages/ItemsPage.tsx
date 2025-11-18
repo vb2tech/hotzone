@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, Container, Zone } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Layers, Plus, Save, X, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Filter, X as XIcon } from 'lucide-react'
+import { Layers, Plus, Save, X, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Filter, X as XIcon, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
 
 type ViewSize = 'small' | 'medium' | 'large'
 
@@ -699,6 +700,85 @@ export const ItemsPage: React.FC = () => {
 
   const hasActiveFilters = Object.values(filters).some(value => value !== '')
   
+  const exportToExcel = () => {
+    try {
+      // Use sortedItems which already respects current filters and sorting
+      // sortedItems is computed from filteredItems and sortColumn/sortDirection
+      const itemsToExport = sortedItems
+      
+      // Separate cards and comics
+      const cards = itemsToExport.filter(item => item.item_type === 'card')
+      const comics = itemsToExport.filter(item => item.item_type === 'comic')
+      
+      // Prepare card data (removed user_id, zone_id, container_id - will be looked up by name on import)
+      const cardData = cards.map(card => ({
+        id: card.id,
+        container_name: card.container?.name || '',
+        zone_name: card.container?.zone?.name || '',
+        created_at: card.created_at,
+        updated_at: card.updated_at,
+        grade: card.grade ?? '',
+        condition: card.condition || '',
+        quantity: card.quantity,
+        player: card.player || '',
+        team: card.team || '',
+        manufacturer: card.manufacturer || '',
+        sport: card.sport || '',
+        year: card.year ?? '',
+        number: card.number || '',
+        number_out_of: card.number_out_of ?? '',
+        is_rookie: card.is_rookie ? 'Yes' : 'No',
+        price: card.price ?? '',
+        cost: card.cost ?? '',
+        description: card.description || ''
+      }))
+      
+      // Prepare comic data (removed user_id, zone_id, container_id - will be looked up by name on import)
+      const comicData = comics.map(comic => ({
+        id: comic.id,
+        container_name: comic.container?.name || '',
+        zone_name: comic.container?.zone?.name || '',
+        created_at: comic.created_at,
+        updated_at: comic.updated_at,
+        grade: comic.grade ?? '',
+        condition: comic.condition || '',
+        quantity: comic.quantity,
+        title: comic.title || '',
+        publisher: comic.publisher || '',
+        issue: comic.issue ?? '',
+        year: comic.year ?? '',
+        price: comic.price ?? '',
+        cost: comic.cost ?? '',
+        description: comic.description || ''
+      }))
+      
+      // Create workbook
+      const workbook = XLSX.utils.book_new()
+      
+      // Add Cards sheet
+      if (cardData.length > 0) {
+        const cardSheet = XLSX.utils.json_to_sheet(cardData)
+        XLSX.utils.book_append_sheet(workbook, cardSheet, 'Cards')
+      }
+      
+      // Add Comics sheet
+      if (comicData.length > 0) {
+        const comicSheet = XLSX.utils.json_to_sheet(comicData)
+        XLSX.utils.book_append_sheet(workbook, comicSheet, 'Comics')
+      }
+      
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().split('T')[0]
+      const filename = `hotzone-items-${timestamp}.xlsx`
+      
+      // Write and download
+      XLSX.writeFile(workbook, filename)
+    } catch (error) {
+      console.error('Error exporting to Excel:', error)
+      alert('Failed to export items. Please try again.')
+    }
+  }
+  
   // Get unique zones for filter dropdown
   const uniqueZones = Array.from(new Set(
     containers
@@ -774,6 +854,13 @@ export const ItemsPage: React.FC = () => {
               L
             </button>
           </div>
+          <button
+            onClick={exportToExcel}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download Excel
+          </button>
           <Link
             to="/items/new"
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
