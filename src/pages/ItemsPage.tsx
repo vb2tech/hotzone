@@ -1966,7 +1966,7 @@ export const ItemsPage: React.FC = () => {
                     <th 
                       scope="col" 
                       onClick={() => handleSort('details')}
-                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none`}
+                      className={`${viewSize === 'small' ? 'px-3 py-2 text-xs' : viewSize === 'large' ? 'px-8 py-4 text-base' : 'px-6 py-3 text-sm'} text-center font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none min-w-[300px]`}
                     >
                       <div className="flex items-center justify-center space-x-1">
                         <span>Details</span>
@@ -2357,7 +2357,7 @@ export const ItemsPage: React.FC = () => {
                         </div>
                           )}
                       </td>
-                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'}`}>
+                      <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} min-w-[300px]`}>
                           {isEditing ? (
                             <textarea
                               value={editingItem.description || ''}
@@ -2366,7 +2366,7 @@ export const ItemsPage: React.FC = () => {
                               className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-full`}
                             />
                           ) : (
-                        <div className={`${textSizes.subtext} text-gray-900`}>
+                        <div className={`${textSizes.subtext} text-gray-900 whitespace-normal break-words`}>
                           {item.description || '-'}
                         </div>
                           )}
