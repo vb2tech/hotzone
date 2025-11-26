@@ -245,18 +245,26 @@ export const ItemsPage: React.FC = () => {
         return
       }
 
-      // Try to delete from cards table first
-      const { error: cardError } = await supabase.from('cards').delete().eq('id', id)
-      
-      if (cardError) {
-        // If card deletion failed, try comics table
-        const { error: comicError } = await supabase.from('comics').delete().eq('id', id)
-        if (comicError) throw comicError
+      // Determine which table to delete from based on item_type
+      if (item?.item_type === 'card') {
+        const { error } = await supabase.from('cards').delete().eq('id', id)
+        if (error) throw error
+      } else if (item?.item_type === 'comic') {
+        const { error } = await supabase.from('comics').delete().eq('id', id)
+        if (error) throw error
+      } else {
+        // Fallback: try both tables if item_type is not set
+        const { error: cardError } = await supabase.from('cards').delete().eq('id', id)
+        if (cardError) {
+          const { error: comicError } = await supabase.from('comics').delete().eq('id', id)
+          if (comicError) throw comicError
+        }
       }
       
       fetchItems()
     } catch (error) {
       console.error('Error deleting item:', error)
+      alert('Failed to delete item. Please try again.')
     }
   }
 
