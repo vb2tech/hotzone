@@ -17,6 +17,7 @@ import { ItemForm } from './pages/ItemForm'
 import { ItemDetailPage } from './pages/ItemDetailPage'
 import { CardViewPage } from './pages/CardViewPage'
 import { ComicViewPage } from './pages/ComicViewPage'
+import { ClothingViewPage } from './pages/ClothingViewPage'
 
 
 const AppContent: React.FC = () => {
@@ -57,6 +58,7 @@ const AppContent: React.FC = () => {
           <Route path="/items/:id/edit" element={<ItemForm />} />
           <Route path="/cards/:id" element={<CardViewPage />} />
           <Route path="/comics/:id" element={<ComicViewPage />} />
+          <Route path="/clothing/:id" element={<ClothingViewPage />} />
         </Routes>
       </main>
     </div>

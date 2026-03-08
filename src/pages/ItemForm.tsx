@@ -11,12 +11,12 @@ export const ItemForm: React.FC = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
-  const itemTypeFromUrl = searchParams.get('type') as 'card' | 'comic' | null
+  const itemTypeFromUrl = searchParams.get('type') as 'card' | 'comic' | 'clothing' | null
   const isEdit = Boolean(id)
   
   const [formData, setFormData] = useState({
     container_id: '',
-    item_type: 'card' as 'card' | 'comic',
+    item_type: 'card' as 'card' | 'comic' | 'clothing',
     grade: null as number | null,
     condition: '',
     quantity: 1,
@@ -37,7 +37,12 @@ export const ItemForm: React.FC = () => {
     title: '',
     publisher: '',
     issue: 1,
-    comic_year: new Date().getFullYear()
+    comic_year: new Date().getFullYear(),
+    // Clothing specific fields
+    brand: '',
+    clothing_type: '',
+    size: '',
+    color: ''
   })
   const [containers, setContainers] = useState<ContainerWithZone[]>([])
   const [loading, setLoading] = useState(false)
@@ -116,7 +121,12 @@ export const ItemForm: React.FC = () => {
           title: '',
           publisher: '',
           issue: 1,
-          comic_year: new Date().getFullYear()
+          comic_year: new Date().getFullYear(),
+          // Clothing specific fields (defaults)
+          brand: '',
+          clothing_type: '',
+          size: '',
+          color: ''
         })
         return
       }
@@ -155,12 +165,61 @@ export const ItemForm: React.FC = () => {
           title: comicData.title || '',
           publisher: comicData.publisher || '',
           issue: comicData.issue || 1,
-          comic_year: comicData.year || new Date().getFullYear()
+          comic_year: comicData.year || new Date().getFullYear(),
+          // Clothing specific fields (defaults)
+          brand: '',
+          clothing_type: '',
+          size: '',
+          color: ''
         })
         return
       }
 
-      // If no type specified, try both tables (fallback behavior)
+      if (itemTypeFromUrl === 'clothing') {
+        const { data: clothingData, error: clothingError } = await supabase
+          .from('clothing')
+          .select('*')
+          .eq('id', itemId)
+          .eq('user_id', user.id)
+          .single()
+
+        if (clothingError) throw clothingError
+        if (!clothingData) throw new Error('Clothing not found')
+
+        setFormData({
+          container_id: clothingData.container_id,
+          item_type: 'clothing',
+          grade: clothingData.grade,
+          condition: clothingData.condition || '',
+          quantity: clothingData.quantity || 1,
+          price: clothingData.price || null,
+          cost: clothingData.cost || null,
+          description: clothingData.description || '',
+          // Card specific fields (defaults)
+          player: '',
+          team: '',
+          manufacturer: '',
+          sport: '',
+          card_year: new Date().getFullYear(),
+          number: '',
+          number_out_of: null,
+          number_type: 'single',
+          is_rookie: false,
+          // Comic specific fields (defaults)
+          title: '',
+          publisher: '',
+          issue: 1,
+          comic_year: new Date().getFullYear(),
+          // Clothing specific fields
+          brand: clothingData.brand || '',
+          clothing_type: clothingData.type || '',
+          size: clothingData.size || '',
+          color: clothingData.color || ''
+        })
+        return
+      }
+
+      // If no type specified, try all tables (fallback behavior)
       // Try to fetch from cards table first (with user_id filter)
       const { data: cardData, error: cardError } = await supabase
         .from('cards')
@@ -194,7 +253,12 @@ export const ItemForm: React.FC = () => {
           title: '',
           publisher: '',
           issue: 1,
-          comic_year: new Date().getFullYear()
+          comic_year: new Date().getFullYear(),
+          // Clothing specific fields (defaults)
+          brand: '',
+          clothing_type: '',
+          size: '',
+          color: ''
         })
         return
       }
@@ -232,12 +296,60 @@ export const ItemForm: React.FC = () => {
           title: comicData.title || '',
           publisher: comicData.publisher || '',
           issue: comicData.issue || 1,
-          comic_year: comicData.year || new Date().getFullYear()
+          comic_year: comicData.year || new Date().getFullYear(),
+          // Clothing specific fields (defaults)
+          brand: '',
+          clothing_type: '',
+          size: '',
+          color: ''
         })
         return
       }
 
-      // If neither card nor comic found, throw error
+      // Try to fetch from clothing table (with user_id filter)
+      const { data: clothingData, error: clothingError } = await supabase
+        .from('clothing')
+        .select('*')
+        .eq('id', itemId)
+        .eq('user_id', user.id)
+        .single()
+
+      // If clothing found (no error and data exists), use it
+      if (!clothingError && clothingData) {
+        setFormData({
+          container_id: clothingData.container_id,
+          item_type: 'clothing',
+          grade: clothingData.grade,
+          condition: clothingData.condition || '',
+          quantity: clothingData.quantity || 1,
+          price: clothingData.price || null,
+          cost: clothingData.cost || null,
+          description: clothingData.description || '',
+          // Card specific fields (defaults)
+          player: '',
+          team: '',
+          manufacturer: '',
+          sport: '',
+          card_year: new Date().getFullYear(),
+          number: '',
+          number_out_of: null,
+          number_type: 'single',
+          is_rookie: false,
+          // Comic specific fields (defaults)
+          title: '',
+          publisher: '',
+          issue: 1,
+          comic_year: new Date().getFullYear(),
+          // Clothing specific fields
+          brand: clothingData.brand || '',
+          clothing_type: clothingData.type || '',
+          size: clothingData.size || '',
+          color: clothingData.color || ''
+        })
+        return
+      }
+
+      // If no item found in any table, throw error
       throw new Error('Item not found')
     } catch (error) {
       console.error('Error fetching item:', error)
@@ -287,7 +399,7 @@ export const ItemForm: React.FC = () => {
             .update(cardData)
             .eq('id', id)
             .select()
-          
+
           if (error) {
             console.error('Card update error:', error)
             alert(`Failed to update card: ${error.message}`)
@@ -299,7 +411,7 @@ export const ItemForm: React.FC = () => {
             .from('cards')
             .insert([cardData])
             .select()
-          
+
           if (error) {
             console.error('Card insert error:', error)
             alert(`Failed to create card: ${error.message}`)
@@ -307,7 +419,7 @@ export const ItemForm: React.FC = () => {
           }
           console.log('Card created successfully:', data)
         }
-      } else {
+      } else if (formData.item_type === 'comic') {
         const comicData = {
           ...baseData,
           title: formData.title,
@@ -322,7 +434,7 @@ export const ItemForm: React.FC = () => {
             .update(comicData)
             .eq('id', id)
             .select()
-          
+
           if (error) {
             console.error('Comic update error:', error)
             alert(`Failed to update comic: ${error.message}`)
@@ -334,13 +446,60 @@ export const ItemForm: React.FC = () => {
             .from('comics')
             .insert([comicData])
             .select()
-          
+
           if (error) {
             console.error('Comic insert error:', error)
             alert(`Failed to create comic: ${error.message}`)
             throw error
           }
           console.log('Comic created successfully:', data)
+        }
+      } else if (formData.item_type === 'clothing') {
+        // Get current user for RLS policy
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          alert('You must be logged in to save clothing')
+          throw new Error('User not authenticated')
+        }
+
+        const clothingData = {
+          container_id: formData.container_id,
+          condition: formData.condition,
+          quantity: formData.quantity,
+          price: formData.price,
+          cost: formData.cost,
+          description: formData.description || null,
+          brand: formData.brand,
+          type: formData.clothing_type,
+          size: formData.size,
+          color: formData.color
+        }
+
+        if (isEdit && id) {
+          const { data, error } = await supabase
+            .from('clothing')
+            .update(clothingData)
+            .eq('id', id)
+            .select()
+
+          if (error) {
+            console.error('Clothing update error:', error)
+            alert(`Failed to update clothing: ${error.message}`)
+            throw error
+          }
+          console.log('Clothing updated successfully:', data)
+        } else {
+          const { data, error } = await supabase
+            .from('clothing')
+            .insert([{ ...clothingData, user_id: user.id }])
+            .select()
+
+          if (error) {
+            console.error('Clothing insert error:', error)
+            alert(`Failed to create clothing: ${error.message}`)
+            throw error
+          }
+          console.log('Clothing created successfully:', data)
         }
       }
       navigate('/items')
@@ -445,7 +604,7 @@ export const ItemForm: React.FC = () => {
           setDuplicateError('A card with all the same values already exists in this container.')
           return true
         }
-      } else {
+      } else if (formData.item_type === 'comic') {
         // Check for duplicate comics in the same container
         // IMPORTANT: Issue number is a key differentiator - comics with the same title but different
         // issue numbers are considered different items and are always allowed, even in the same container.
@@ -524,6 +683,73 @@ export const ItemForm: React.FC = () => {
 
         if (filteredComics.length > 0) {
           setDuplicateError('A comic with all the same values already exists in this container.')
+          return true
+        }
+      } else if (formData.item_type === 'clothing') {
+        // Check for duplicate clothing in the same container
+        let query = supabase
+          .from('clothing')
+          .select('*')
+          .eq('container_id', formData.container_id)
+          .eq('user_id', user.id)
+          .eq('brand', formData.brand)
+          .eq('type', formData.clothing_type)
+          .eq('size', formData.size)
+          .eq('color', formData.color)
+
+        // CRITICAL: Exclude the current item when editing to prevent false duplicates
+        if (currentItemId) {
+          query = query.neq('id', currentItemId)
+        }
+
+        const { data: existingClothing, error } = await query
+
+        if (error) throw error
+
+        // If no clothing found with matching brand, type, size, and color, it's not a duplicate
+        if (!existingClothing || existingClothing.length === 0) {
+          setDuplicateError(null)
+          return false
+        }
+
+        // Normalize form values for comparison
+        const formCondition = (formData.condition?.trim() || null)
+        const formQuantity = formData.quantity || 1
+        const formPrice = formData.price || null
+        const formCost = formData.cost || null
+        const formDescription = (formData.description?.trim() || null)
+
+        // Filter in JavaScript to compare ALL fields
+        const filteredClothing = existingClothing?.filter(clothing => {
+          // Double-check: Exclude the current item if we're editing (defensive programming)
+          if (currentItemId && clothing.id === currentItemId) {
+            console.warn('Duplicate check: Found current item in results, excluding it', clothing.id)
+            return false
+          }
+
+          // Compare all other fields
+          const clothingCondition = (clothing.condition?.trim() || null)
+          const conditionMatches = formCondition === clothingCondition
+
+          const clothingQuantity = clothing.quantity || 1
+          const quantityMatches = formQuantity === clothingQuantity
+
+          const clothingPrice = clothing.price || null
+          const priceMatches = formPrice === clothingPrice
+
+          const clothingCost = clothing.cost || null
+          const costMatches = formCost === clothingCost
+
+          const clothingDescription = (clothing.description?.trim() || null)
+          const descriptionMatches = formDescription === clothingDescription
+
+          // ALL fields must match for it to be a duplicate
+          return conditionMatches && quantityMatches &&
+                 priceMatches && costMatches && descriptionMatches
+        }) || []
+
+        if (filteredClothing.length > 0) {
+          setDuplicateError('A clothing item with all the same values already exists in this container.')
           return true
         }
       }
@@ -609,6 +835,7 @@ export const ItemForm: React.FC = () => {
                 className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
                 <option value="card">Card</option>
+                <option value="clothing">Clothing</option>
                 <option value="comic">Comic</option>
               </select>
             </div>
@@ -635,20 +862,22 @@ export const ItemForm: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="grade" className="block text-sm font-medium text-gray-700">
-                  Grade
-                </label>
-                <input
-                  type="number"
-                  name="grade"
-                  id="grade"
-                  value={formData.grade || ''}
-                  onChange={handleChange}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Grade (optional)"
-                />
-              </div>
+              {formData.item_type !== 'clothing' && (
+                <div>
+                  <label htmlFor="grade" className="block text-sm font-medium text-gray-700">
+                    Grade
+                  </label>
+                  <input
+                    type="number"
+                    name="grade"
+                    id="grade"
+                    value={formData.grade || ''}
+                    onChange={handleChange}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Grade (optional)"
+                  />
+                </div>
+              )}
               <div>
                 <label htmlFor="condition" className="block text-sm font-medium text-gray-700">
                   Condition
@@ -660,7 +889,7 @@ export const ItemForm: React.FC = () => {
                   value={formData.condition}
                   onChange={handleChange}
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="e.g., Mint, Near Mint"
+                  placeholder={formData.item_type === 'clothing' ? "e.g. New, Used" : "e.g. Mint, Near Mint"}
                 />
               </div>
               <div>
@@ -744,7 +973,7 @@ export const ItemForm: React.FC = () => {
                       value={formData.player}
                       onChange={handleChange}
                       className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="e.g., Michael Jordan"
+                      placeholder="e.g. Michael Jordan"
                     />
                   </div>
                   <div>
@@ -758,7 +987,7 @@ export const ItemForm: React.FC = () => {
                       value={formData.team}
                       onChange={handleChange}
                       className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="e.g., Chicago Bulls, Los Angeles Lakers"
+                      placeholder="e.g. Chicago Bulls, Los Angeles Lakers"
                     />
                   </div>
                   <div>
@@ -773,7 +1002,7 @@ export const ItemForm: React.FC = () => {
                       value={formData.manufacturer}
                       onChange={handleChange}
                       className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="e.g., Topps, Panini"
+                      placeholder="e.g. Topps, Panini"
                     />
                   </div>
                   <div>
@@ -788,7 +1017,7 @@ export const ItemForm: React.FC = () => {
                       value={formData.sport}
                       onChange={handleChange}
                       className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="e.g., Basketball, Football"
+                      placeholder="e.g. Basketball, Football"
                     />
                   </div>
                   <div>
@@ -836,7 +1065,7 @@ export const ItemForm: React.FC = () => {
                             value={formData.number}
                             onChange={handleChange}
                             className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            placeholder="e.g., #23, #1"
+                            placeholder="e.g. #23, #1"
                           />
                         </div>
                       )}
@@ -867,7 +1096,7 @@ export const ItemForm: React.FC = () => {
                               value={formData.number}
                               onChange={handleChange}
                               className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                              placeholder="e.g., 1"
+                              placeholder="e.g. 1"
                             />
                             <span className="text-sm text-gray-500">out of</span>
                             <input
@@ -878,7 +1107,7 @@ export const ItemForm: React.FC = () => {
                               value={formData.number_out_of || ''}
                               onChange={handleChange}
                               className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                              placeholder="e.g., 100"
+                              placeholder="e.g. 100"
                             />
                           </div>
                         </div>
@@ -919,7 +1148,7 @@ export const ItemForm: React.FC = () => {
                       value={formData.title}
                       onChange={handleChange}
                       className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="e.g., Amazing Spider-Man"
+                      placeholder="e.g. Amazing Spider-Man"
                     />
                   </div>
                   <div>
@@ -934,7 +1163,7 @@ export const ItemForm: React.FC = () => {
                       value={formData.publisher}
                       onChange={handleChange}
                       className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="e.g., Marvel, DC Comics"
+                      placeholder="e.g. Marvel, DC Comics"
                     />
                   </div>
                   <div>
@@ -965,6 +1194,75 @@ export const ItemForm: React.FC = () => {
                       onChange={handleChange}
                       className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                       placeholder="2023"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Clothing-specific fields */}
+            {formData.item_type === 'clothing' && (
+              <div className="space-y-4 border-t pt-6">
+                <h3 className="text-lg font-medium text-gray-900">Clothing Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="brand" className="block text-sm font-medium text-gray-700">
+                      Brand *
+                    </label>
+                    <input
+                      type="text"
+                      name="brand"
+                      id="brand"
+                      required
+                      value={formData.brand}
+                      onChange={handleChange}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="e.g. Nike, Adidas, Supreme"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="clothing_type" className="block text-sm font-medium text-gray-700">
+                      Type *
+                    </label>
+                    <input
+                      type="text"
+                      name="clothing_type"
+                      id="clothing_type"
+                      required
+                      value={formData.clothing_type}
+                      onChange={handleChange}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="e.g. T-Shirt, Jersey, Hoodie"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="size" className="block text-sm font-medium text-gray-700">
+                      Size *
+                    </label>
+                    <input
+                      type="text"
+                      name="size"
+                      id="size"
+                      required
+                      value={formData.size}
+                      onChange={handleChange}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="e.g. S, M, L, XL, 32"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="color" className="block text-sm font-medium text-gray-700">
+                      Color *
+                    </label>
+                    <input
+                      type="text"
+                      name="color"
+                      id="color"
+                      required
+                      value={formData.color}
+                      onChange={handleChange}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="e.g. Black, White, Red"
                     />
                   </div>
                 </div>

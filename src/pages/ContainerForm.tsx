@@ -143,7 +143,7 @@ export const ContainerForm: React.FC = () => {
                 value={formData.name}
                 onChange={handleChange}
                 className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="e.g., Card Box 1, Comic Shelf A, Storage Bin"
+                placeholder="e.g. Card Box 1, Comic Shelf A, Storage Bin"
               />
             </div>
 

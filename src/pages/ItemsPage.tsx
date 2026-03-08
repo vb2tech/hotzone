@@ -4,6 +4,14 @@ import { supabase, Container, Zone } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Layers, Plus, Save, X, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Filter, X as XIcon, Download, Upload } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import {
+  cardHasChanges,
+  comicHasChanges,
+  clothingHasChanges,
+  createCardCompositeKey,
+  createComicCompositeKey,
+  createClothingCompositeKey
+} from '../lib/excel-utils'
 
 type ViewSize = 'small' | 'medium' | 'large'
 
@@ -16,7 +24,7 @@ interface ItemWithDetails {
   grade: number | null
   condition: string | null
   quantity: number
-  item_type: 'card' | 'comic'
+  item_type: 'card' | 'comic' | 'clothing'
   description: string | null
   container: (Container & {
     zone: Zone | null
@@ -34,6 +42,11 @@ interface ItemWithDetails {
   title?: string
   publisher?: string
   issue?: number
+  // Clothing fields
+  brand?: string
+  type?: string
+  size?: string
+  color?: string
   // Common fields
   price?: number | null
   cost?: number | null
@@ -49,7 +62,7 @@ interface ContainerWithZone extends Container {
 export const ItemsPage: React.FC = () => {
   const [items, setItems] = useState<ItemWithDetails[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'card' | 'comic' | 'graded-card' | 'graded-comic'>('all')
+  const [filter, setFilter] = useState<'all' | 'card' | 'comic' | 'clothing' | 'graded-card' | 'graded-comic'>('all')
   const [containers, setContainers] = useState<ContainerWithZone[]>([])
   const [editingItems, setEditingItems] = useState<Map<string, ItemWithDetails>>(new Map())
   const [currentPage, setCurrentPage] = useState(1)
@@ -72,12 +85,14 @@ export const ItemsPage: React.FC = () => {
     cardsUpdated: number
     comicsCreated: number
     comicsUpdated: number
-    errors: Array<{ row: number; type: 'card' | 'comic'; message: string }>
+    clothingCreated: number
+    clothingUpdated: number
+    errors: Array<{ row: number; type: 'card' | 'comic' | 'clothing'; message: string }>
   } | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const [filters, setFilters] = useState({
-    type: '' as '' | 'card' | 'comic',
+    type: '' as '' | 'card' | 'comic' | 'clothing',
     name: '',
     manufacturer: '',
     sport: '',
@@ -160,8 +175,8 @@ export const ItemsPage: React.FC = () => {
     try {
       if (!user) return
 
-      // Fetch cards and comics separately for current user only
-      const [cardsResult, comicsResult] = await Promise.all([
+      // Fetch cards, comics, and clothing separately for current user only
+      const [cardsResult, comicsResult, clothingResult] = await Promise.all([
         supabase
           .from('cards')
           .select(`
@@ -191,11 +206,27 @@ export const ItemsPage: React.FC = () => {
             )
           `)
           .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('clothing')
+          .select(`
+            *,
+            containers (
+              id,
+              name,
+              zones (
+                id,
+                name
+              )
+            )
+          `)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false })
       ])
 
       if (cardsResult.error) throw cardsResult.error
       if (comicsResult.error) throw comicsResult.error
+      if (clothingResult.error) throw clothingResult.error
 
       // Combine and format the data, gracefully handling null containers/zones
       const cards = cardsResult.data?.map(card => ({
@@ -216,11 +247,20 @@ export const ItemsPage: React.FC = () => {
         } : null
       })) || []
 
+      const clothing = clothingResult.data?.map(item => ({
+        ...item,
+        item_type: 'clothing' as const,
+        container: item.containers ? {
+          ...item.containers,
+          zone: item.containers.zones || null
+        } : null
+      })) || []
+
       // Combine and sort by creation date
-      const allItems = [...cards, ...comics].sort((a, b) => 
+      const allItems = [...cards, ...comics, ...clothing].sort((a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       )
-      
+
       setItems(allItems)
     } catch (error) {
       console.error('Error fetching items:', error)
@@ -252,8 +292,11 @@ export const ItemsPage: React.FC = () => {
       } else if (item?.item_type === 'comic') {
         const { error } = await supabase.from('comics').delete().eq('id', id)
         if (error) throw error
+      } else if (item?.item_type === 'clothing') {
+        const { error } = await supabase.from('clothing').delete().eq('id', id)
+        if (error) throw error
       } else {
-        // Fallback: try both tables if item_type is not set
+        // Fallback: try all tables if item_type is not set
         const { error: cardError } = await supabase.from('cards').delete().eq('id', id)
         if (cardError) {
           const { error: comicError } = await supabase.from('comics').delete().eq('id', id)
@@ -466,6 +509,8 @@ export const ItemsPage: React.FC = () => {
       if (item.item_type !== 'card') return false
     } else if (filter === 'comic') {
       if (item.item_type !== 'comic') return false
+    } else if (filter === 'clothing') {
+      if (item.item_type !== 'clothing') return false
     } else if (filter === 'graded-card') {
       // Only show cards where grade is a valid number (not null, not undefined, not empty string)
       if (item.item_type !== 'card' || item.grade == null || (typeof item.grade === 'string' && item.grade === '')) return false
@@ -478,9 +523,9 @@ export const ItemsPage: React.FC = () => {
 
     // Apply column filters
     if (filters.type && item.item_type !== filters.type) return false
-    
+
     if (filters.name) {
-      const name = item.item_type === 'card' ? item.player : item.title
+      const name = item.item_type === 'card' ? item.player : item.item_type === 'comic' ? item.title : `${item.brand} ${item.type}`
       if (!name?.toLowerCase().includes(filters.name.toLowerCase())) return false
     }
     
@@ -725,11 +770,12 @@ export const ItemsPage: React.FC = () => {
       // Use sortedItems which already respects current filters and sorting
       // sortedItems is computed from filteredItems and sortColumn/sortDirection
       const itemsToExport = sortedItems
-      
-      // Separate cards and comics
+
+      // Separate cards, comics, and clothing
       const cards = itemsToExport.filter(item => item.item_type === 'card')
       const comics = itemsToExport.filter(item => item.item_type === 'comic')
-      
+      const clothing = itemsToExport.filter(item => item.item_type === 'clothing')
+
       // Prepare card data (removed user_id, zone_id, container_id, created_at, updated_at - will be looked up by name on import)
       const cardData = cards.map(card => ({
         id: card.id,
@@ -750,7 +796,7 @@ export const ItemsPage: React.FC = () => {
         cost: card.cost ?? '',
         description: card.description || ''
       }))
-      
+
       // Prepare comic data (removed user_id, zone_id, container_id, created_at, updated_at - will be looked up by name on import)
       const comicData = comics.map(comic => ({
         id: comic.id,
@@ -767,26 +813,48 @@ export const ItemsPage: React.FC = () => {
         cost: comic.cost ?? '',
         description: comic.description || ''
       }))
-      
+
+      // Prepare clothing data
+      const clothingData = clothing.map(item => ({
+        id: item.id,
+        container_name: item.container?.name || '',
+        zone_name: item.container?.zone?.name || '',
+        condition: item.condition || '',
+        quantity: item.quantity,
+        brand: item.brand || '',
+        type: item.type || '',
+        size: item.size || '',
+        color: item.color || '',
+        price: item.price ?? '',
+        cost: item.cost ?? '',
+        description: item.description || ''
+      }))
+
       // Create workbook
       const workbook = XLSX.utils.book_new()
-      
+
       // Add Cards sheet
       if (cardData.length > 0) {
         const cardSheet = XLSX.utils.json_to_sheet(cardData)
         XLSX.utils.book_append_sheet(workbook, cardSheet, 'Cards')
       }
-      
+
+      // Add Clothing sheet
+      if (clothingData.length > 0) {
+        const clothingSheet = XLSX.utils.json_to_sheet(clothingData)
+        XLSX.utils.book_append_sheet(workbook, clothingSheet, 'Clothing')
+      }
+
       // Add Comics sheet
       if (comicData.length > 0) {
         const comicSheet = XLSX.utils.json_to_sheet(comicData)
         XLSX.utils.book_append_sheet(workbook, comicSheet, 'Comics')
       }
-      
+
       // Generate filename with timestamp
       const timestamp = new Date().toISOString().split('T')[0]
       const filename = `hotzone-items-${timestamp}.xlsx`
-      
+
       // Write and download
       XLSX.writeFile(workbook, filename)
     } catch (error) {
@@ -818,7 +886,7 @@ export const ItemsPage: React.FC = () => {
 
       // Step 1: Fetch ALL existing items from database and store in memory
       console.log('📥 Step 1: Fetching all existing items from database...')
-      const [cardsResult, comicsResult] = await Promise.all([
+      const [cardsResult, comicsResult, clothingResult] = await Promise.all([
         supabase
           .from('cards')
           .select('*')
@@ -826,20 +894,27 @@ export const ItemsPage: React.FC = () => {
         supabase
           .from('comics')
           .select('*')
+          .eq('user_id', user!.id),
+        supabase
+          .from('clothing')
+          .select('*')
           .eq('user_id', user!.id)
       ])
 
       if (cardsResult.error) throw new Error(`Failed to fetch cards: ${cardsResult.error.message}`)
       if (comicsResult.error) throw new Error(`Failed to fetch comics: ${comicsResult.error.message}`)
+      if (clothingResult.error) throw new Error(`Failed to fetch clothing: ${clothingResult.error.message}`)
 
       // Store all existing items in memory
       const existingCards = cardsResult.data || []
       const existingComics = comicsResult.data || []
-      console.log(`✅ Step 1 complete: Found ${existingCards.length} existing cards and ${existingComics.length} existing comics in database`)
+      const existingClothing = clothingResult.data || []
+      console.log(`✅ Step 1 complete: Found ${existingCards.length} existing cards, ${existingComics.length} existing comics, and ${existingClothing.length} existing clothing in database`)
 
       // Create Maps for quick lookup by ID (handle both string and number IDs)
       const existingCardsMap = new Map<string, any>()
       const existingComicsMap = new Map<string, any>()
+      const existingClothingMap = new Map<string, any>()
 
       existingCards.forEach(card => {
         const idStr = String(card.id)
@@ -857,6 +932,14 @@ export const ItemsPage: React.FC = () => {
         }
       })
 
+      existingClothing.forEach(item => {
+        const idStr = String(item.id)
+        existingClothingMap.set(idStr, item)
+        if (typeof item.id === 'number') {
+          existingClothingMap.set(item.id.toString(), item)
+        }
+      })
+
       // Step 2: Read the Excel file and load worksheets into arrays
       const data = await file.arrayBuffer()
       const workbook = XLSX.read(data, { 
@@ -866,11 +949,12 @@ export const ItemsPage: React.FC = () => {
         raw: false
       })
 
-      // Get Cards and Comics sheets
+      // Get Cards, Comics, and Clothing sheets
       const cardsSheet = workbook.Sheets['Cards']
       const comicsSheet = workbook.Sheets['Comics']
+      const clothingSheet = workbook.Sheets['Clothing']
 
-      if (!cardsSheet && !comicsSheet) {
+      if (!cardsSheet && !comicsSheet && !clothingSheet) {
         setUploadResults({
           success: false,
           partial: false,
@@ -878,7 +962,9 @@ export const ItemsPage: React.FC = () => {
           cardsUpdated: 0,
           comicsCreated: 0,
           comicsUpdated: 0,
-          errors: [{ row: 0, type: 'card', message: 'Excel file must contain "Cards" and/or "Comics" sheets' }]
+          clothingCreated: 0,
+          clothingUpdated: 0,
+          errors: [{ row: 0, type: 'card', message: 'Excel file must contain "Cards", "Comics", and/or "Clothing" sheets' }]
         })
         setIsUploading(false)
         return
@@ -888,84 +974,10 @@ export const ItemsPage: React.FC = () => {
       console.log('📊 Step 2: Loading Excel worksheets into arrays...')
       const excelCards: any[] = cardsSheet ? XLSX.utils.sheet_to_json(cardsSheet) as any[] : []
       const excelComics: any[] = comicsSheet ? XLSX.utils.sheet_to_json(comicsSheet) as any[] : []
-      console.log(`✅ Step 2 complete: Loaded ${excelCards.length} cards and ${excelComics.length} comics from Excel file`)
+      const excelClothing: any[] = clothingSheet ? XLSX.utils.sheet_to_json(clothingSheet) as any[] : []
+      console.log(`✅ Step 2 complete: Loaded ${excelCards.length} cards, ${excelComics.length} comics, and ${excelClothing.length} clothing from Excel file`)
 
-      // Helper function to normalize values for comparison
-      const normalizeValue = (value: any): any => {
-        if (value === null || value === undefined || value === '') return null
-        if (typeof value === 'string') {
-          const trimmed = value.trim()
-          if (trimmed === '') return null
-          // Try to parse as number if it looks like one
-          const num = parseFloat(trimmed)
-          if (!isNaN(num) && isFinite(num) && trimmed === num.toString()) {
-            return num
-          }
-          return trimmed
-        }
-        if (typeof value === 'number') {
-          return isNaN(value) || !isFinite(value) ? null : value
-        }
-        if (typeof value === 'boolean') {
-          return value
-        }
-        return value
-      }
-
-      // Helper function to compare two values
-      const valuesEqual = (a: any, b: any): boolean => {
-        const normA = normalizeValue(a)
-        const normB = normalizeValue(b)
-        
-        if (normA === null && normB === null) return true
-        if (normA === null || normB === null) return false
-        
-        if (typeof normA === 'number' && typeof normB === 'number') {
-          return Math.abs(normA - normB) < 0.0001
-        }
-        
-        return normA === normB
-      }
-
-      // Helper function to check if card data has changes
-      const cardHasChanges = (existing: any, newData: any): boolean => {
-        return (
-          !valuesEqual(existing.container_id, newData.container_id) ||
-          !valuesEqual(existing.grade, newData.grade) ||
-          !valuesEqual(existing.condition, newData.condition) ||
-          !valuesEqual(existing.quantity, newData.quantity) ||
-          !valuesEqual(existing.price, newData.price) ||
-          !valuesEqual(existing.cost, newData.cost) ||
-          !valuesEqual(existing.description, newData.description) ||
-          !valuesEqual(existing.player, newData.player) ||
-          !valuesEqual(existing.team, newData.team) ||
-          !valuesEqual(existing.manufacturer, newData.manufacturer) ||
-          !valuesEqual(existing.sport, newData.sport) ||
-          !valuesEqual(existing.year, newData.year) ||
-          !valuesEqual(existing.number, newData.number) ||
-          !valuesEqual(existing.number_out_of, newData.number_out_of) ||
-          !valuesEqual(existing.is_rookie, newData.is_rookie)
-        )
-      }
-
-      // Helper function to check if comic data has changes
-      const comicHasChanges = (existing: any, newData: any): boolean => {
-        return (
-          !valuesEqual(existing.container_id, newData.container_id) ||
-          !valuesEqual(existing.grade, newData.grade) ||
-          !valuesEqual(existing.condition, newData.condition) ||
-          !valuesEqual(existing.quantity, newData.quantity) ||
-          !valuesEqual(existing.price, newData.price) ||
-          !valuesEqual(existing.cost, newData.cost) ||
-          !valuesEqual(existing.description, newData.description) ||
-          !valuesEqual(existing.title, newData.title) ||
-          !valuesEqual(existing.publisher, newData.publisher) ||
-          !valuesEqual(existing.issue, newData.issue) ||
-          !valuesEqual(existing.year, newData.year)
-        )
-      }
-
-      const errors: Array<{ row: number; type: 'card' | 'comic'; message: string }> = []
+      const errors: Array<{ row: number; type: 'card' | 'comic' | 'clothing'; message: string }> = []
       
       // Step 3: Compare by ID and create four lists
       interface ItemToUpdate {
@@ -982,48 +994,14 @@ export const ItemsPage: React.FC = () => {
       const cardsToCreate: ItemToCreate[] = []
       const comicsToUpdate: ItemToUpdate[] = []
       const comicsToCreate: ItemToCreate[] = []
-
-      // Helper function to create a composite key for duplicate detection
-      const createCardCompositeKey = (row: any, containerId: string): string => {
-        return JSON.stringify({
-          container_id: containerId,
-          player: row.player?.toString().trim().toLowerCase() || '',
-          manufacturer: row.manufacturer?.toString().trim().toLowerCase() || '',
-          sport: row.sport?.toString().trim().toLowerCase() || '',
-          year: row.year ? parseInt(String(row.year)) : null,
-          number: row.number?.toString().trim().toLowerCase() || '',
-          team: row.team?.toString().trim().toLowerCase() || null,
-          number_out_of: row.number_out_of ? parseInt(String(row.number_out_of)) : null,
-          is_rookie: row.is_rookie?.toString().toLowerCase() === 'yes' || row.is_rookie === true || row.is_rookie === 'true',
-          grade: row.grade ? parseFloat(String(row.grade)) : null,
-          condition: row.condition?.toString().trim().toLowerCase() || null,
-          quantity: row.quantity ? parseInt(String(row.quantity)) : 1,
-          price: row.price ? parseFloat(String(row.price)) : null,
-          cost: row.cost ? parseFloat(String(row.cost)) : null,
-          description: row.description?.toString().trim().toLowerCase() || null
-        })
-      }
-
-      const createComicCompositeKey = (row: any, containerId: string): string => {
-        return JSON.stringify({
-          container_id: containerId,
-          title: row.title?.toString().trim().toLowerCase() || '',
-          publisher: row.publisher?.toString().trim().toLowerCase() || '',
-          issue: row.issue ? parseInt(String(row.issue)) : null,
-          year: row.year ? parseInt(String(row.year)) : null,
-          grade: row.grade ? parseFloat(String(row.grade)) : null,
-          condition: row.condition?.toString().trim().toLowerCase() || null,
-          quantity: row.quantity ? parseInt(String(row.quantity)) : 1,
-          price: row.price ? parseFloat(String(row.price)) : null,
-          cost: row.cost ? parseFloat(String(row.cost)) : null,
-          description: row.description?.toString().trim().toLowerCase() || null
-        })
-      }
+      const clothingToUpdate: ItemToUpdate[] = []
+      const clothingToCreate: ItemToCreate[] = []
 
       // Check for duplicates within Excel file
       console.log('🔍 Step 3a: Checking for duplicate entries within Excel file...')
       const cardKeys = new Map<string, number[]>() // key -> array of row numbers
       const comicKeys = new Map<string, number[]>() // key -> array of row numbers
+      const clothingKeys = new Map<string, number[]>() // key -> array of row numbers
 
       // First pass: Build composite keys for all Excel rows to detect duplicates
       for (let i = 0; i < excelCards.length; i++) {
@@ -1050,14 +1028,14 @@ export const ItemsPage: React.FC = () => {
       for (let i = 0; i < excelComics.length; i++) {
         const row = excelComics[i]
         const rowNumber = i + 2
-        
+
         try {
           const containerName = row.container_name?.toString().trim()
           if (!containerName) continue // Skip if no container (will be caught in validation)
-          
+
           const container = containers.find(c => c.name.toLowerCase() === containerName.toLowerCase())
           if (!container) continue // Skip if container not found (will be caught in validation)
-          
+
           const key = createComicCompositeKey(row, container.id)
           if (!comicKeys.has(key)) {
             comicKeys.set(key, [])
@@ -1068,9 +1046,31 @@ export const ItemsPage: React.FC = () => {
         }
       }
 
+      for (let i = 0; i < excelClothing.length; i++) {
+        const row = excelClothing[i]
+        const rowNumber = i + 2
+
+        try {
+          const containerName = row.container_name?.toString().trim()
+          if (!containerName) continue // Skip if no container (will be caught in validation)
+
+          const container = containers.find(c => c.name.toLowerCase() === containerName.toLowerCase())
+          if (!container) continue // Skip if container not found (will be caught in validation)
+
+          const key = createClothingCompositeKey(row, container.id)
+          if (!clothingKeys.has(key)) {
+            clothingKeys.set(key, [])
+          }
+          clothingKeys.get(key)!.push(rowNumber)
+        } catch (error) {
+          // Skip if we can't create key
+        }
+      }
+
       // Find duplicates (keys with more than one row number)
       const duplicateCardRows = new Set<number>()
       const duplicateComicRows = new Set<number>()
+      const duplicateClothingRows = new Set<number>()
 
       cardKeys.forEach((rowNumbers) => {
         if (rowNumbers.length > 1) {
@@ -1084,13 +1084,22 @@ export const ItemsPage: React.FC = () => {
         }
       })
 
-      if (duplicateCardRows.size > 0 || duplicateComicRows.size > 0) {
-        console.log(`⚠️ Found duplicates: ${duplicateCardRows.size} card rows, ${duplicateComicRows.size} comic rows`)
+      clothingKeys.forEach((rowNumbers) => {
+        if (rowNumbers.length > 1) {
+          rowNumbers.forEach(rowNum => duplicateClothingRows.add(rowNum))
+        }
+      })
+
+      if (duplicateCardRows.size > 0 || duplicateComicRows.size > 0 || duplicateClothingRows.size > 0) {
+        console.log(`⚠️ Found duplicates: ${duplicateCardRows.size} card rows, ${duplicateComicRows.size} comic rows, ${duplicateClothingRows.size} clothing rows`)
         duplicateCardRows.forEach(rowNum => {
           errors.push({ row: rowNum, type: 'card', message: 'Duplicate entry: This row is identical to another row in the Excel file' })
         })
         duplicateComicRows.forEach(rowNum => {
           errors.push({ row: rowNum, type: 'comic', message: 'Duplicate entry: This row is identical to another row in the Excel file' })
+        })
+        duplicateClothingRows.forEach(rowNum => {
+          errors.push({ row: rowNum, type: 'clothing', message: 'Duplicate entry: This row is identical to another row in the Excel file' })
         })
       } else {
         console.log('✅ No duplicate entries found in Excel file')
@@ -1137,7 +1146,24 @@ export const ItemsPage: React.FC = () => {
         existingComicKeys.add(key)
       })
 
-      // Step 3: Compare by ID and create four lists
+      const existingClothingKeys = new Set<string>()
+      existingClothing.forEach(item => {
+        const key = JSON.stringify({
+          container_id: item.container_id,
+          brand: (item.brand || '').toLowerCase(),
+          type: (item.type || '').toLowerCase(),
+          size: (item.size || '').toLowerCase(),
+          color: (item.color || '').toLowerCase(),
+          condition: item.condition ? item.condition.toLowerCase() : null,
+          quantity: item.quantity || 1,
+          price: item.price || null,
+          cost: item.cost || null,
+          description: item.description ? item.description.toLowerCase() : null
+        })
+        existingClothingKeys.add(key)
+      })
+
+      // Step 3: Compare by ID and create six lists
       console.log('🔍 Step 3b: Comparing Excel data with database items and categorizing...')
       // Process Cards from Excel - parse, validate, and categorize
       for (let i = 0; i < excelCards.length; i++) {
@@ -1321,14 +1347,100 @@ export const ItemsPage: React.FC = () => {
         }
       }
 
-      console.log(`✅ Step 3 complete: Categorized items - Cards to update: ${cardsToUpdate.length}, Cards to create: ${cardsToCreate.length}, Comics to update: ${comicsToUpdate.length}, Comics to create: ${comicsToCreate.length}`)
+      // Process Clothing from Excel - parse, validate, and categorize
+      for (let i = 0; i < excelClothing.length; i++) {
+        const row = excelClothing[i]
+        const rowNumber = i + 2 // Excel rows start at 2 (1 is header)
 
-      // Step 4: Process all four lists - update and create items
+        // Skip if this row is a duplicate
+        if (duplicateClothingRows.has(rowNumber)) {
+          continue
+        }
+
+        try {
+          // Look up container_id by container_name
+          const containerName = row.container_name?.toString().trim()
+          if (!containerName) {
+            errors.push({ row: rowNumber, type: 'clothing', message: 'Missing container_name' })
+            continue
+          }
+
+          const container = containers.find(c => c.name.toLowerCase() === containerName.toLowerCase())
+          if (!container) {
+            errors.push({ row: rowNumber, type: 'clothing', message: `Container "${containerName}" not found` })
+            continue
+          }
+
+          const container_id = container.id
+
+          // Validate required fields
+          if (!row.brand || !row.type || !row.size || !row.color) {
+            errors.push({ row: rowNumber, type: 'clothing', message: 'Missing required fields: brand, type, size, or color' })
+            continue
+          }
+
+          const clothingData = {
+            user_id: user!.id,
+            container_id,
+            condition: (row.condition !== undefined && row.condition !== null && row.condition !== '') ? String(row.condition).trim() : null,
+            quantity: (row.quantity !== undefined && row.quantity !== null && row.quantity !== '') ? parseInt(String(row.quantity)) || 1 : 1,
+            price: (row.price !== undefined && row.price !== null && row.price !== '') ? parseFloat(String(row.price)) : null,
+            cost: (row.cost !== undefined && row.cost !== null && row.cost !== '') ? parseFloat(String(row.cost)) : null,
+            description: (row.description !== undefined && row.description !== null && row.description !== '') ? String(row.description).trim() : null,
+            brand: row.brand.toString().trim(),
+            type: row.type.toString().trim(),
+            size: row.size.toString().trim(),
+            color: row.color.toString().trim()
+          }
+
+          // Check if this is an update (has id) or create (no id)
+          const rawId = row.id
+          const hasId = rawId !== undefined && rawId !== null && rawId !== '' && String(rawId).trim() !== ''
+
+          if (hasId) {
+            // Has ID - check if it exists and has changes
+            const itemId = String(rawId).trim()
+            let existing = existingClothingMap.get(itemId)
+            if (!existing && /^\d+$/.test(itemId)) {
+              existing = existingClothingMap.get(String(parseInt(itemId)))
+            }
+
+            if (!existing) {
+              errors.push({ row: rowNumber, type: 'clothing', message: `No clothing found with id: ${itemId} (or it belongs to another user)` })
+              continue
+            }
+
+            // Check if there are changes
+            if (clothingHasChanges(existing, clothingData)) {
+              clothingToUpdate.push({ rowNumber, id: itemId, data: clothingData })
+            }
+            // If no changes, skip (don't add to update list)
+          } else {
+            // No ID - check if this item already exists in database using composite key
+            const clothingKey = createClothingCompositeKey(row, container_id)
+            if (existingClothingKeys.has(clothingKey)) {
+              errors.push({ row: rowNumber, type: 'clothing', message: 'Cannot create this row - duplicate error: item may already exist in database' })
+              continue
+            }
+
+            // No ID - this is a new clothing item to create
+            clothingToCreate.push({ rowNumber, data: clothingData })
+          }
+        } catch (error: any) {
+          errors.push({ row: rowNumber, type: 'clothing', message: `Error: ${error.message || 'Unknown error'}` })
+        }
+      }
+
+      console.log(`✅ Step 3 complete: Categorized items - Cards to update: ${cardsToUpdate.length}, Cards to create: ${cardsToCreate.length}, Comics to update: ${comicsToUpdate.length}, Comics to create: ${comicsToCreate.length}, Clothing to update: ${clothingToUpdate.length}, Clothing to create: ${clothingToCreate.length}`)
+
+      // Step 4: Process all six lists - update and create items
       console.log('💾 Step 4: Processing updates and creates...')
       let cardsCreated = 0
       let cardsUpdated = 0
       let comicsCreated = 0
       let comicsUpdated = 0
+      let clothingCreated = 0
+      let clothingUpdated = 0
 
       // Process cards to update
       console.log(`  → Processing ${cardsToUpdate.length} card updates...`)
@@ -1422,9 +1534,55 @@ export const ItemsPage: React.FC = () => {
         }
       }
 
+      // Process clothing to update
+      console.log(`  → Processing ${clothingToUpdate.length} clothing updates...`)
+      for (const clothingItem of clothingToUpdate) {
+        try {
+          const updateId = /^\d+$/.test(clothingItem.id) ? parseInt(clothingItem.id, 10) : clothingItem.id
+          const { data: updateData, error } = await supabase
+            .from('clothing')
+            .update(clothingItem.data)
+            .eq('id', updateId)
+            .eq('user_id', user!.id)
+            .select()
+
+          if (error) {
+            errors.push({ row: clothingItem.rowNumber, type: 'clothing', message: `Update failed: ${error.message}` })
+          } else if (!updateData || updateData.length === 0) {
+            errors.push({ row: clothingItem.rowNumber, type: 'clothing', message: `No clothing found with id: ${clothingItem.id} (or it belongs to another user)` })
+          } else {
+            clothingUpdated++
+          }
+        } catch (error: any) {
+          errors.push({ row: clothingItem.rowNumber, type: 'clothing', message: `Error: ${error.message || 'Unknown error'}` })
+        }
+      }
+
+      // Process clothing to create
+      console.log(`  → Processing ${clothingToCreate.length} clothing creates...`)
+      for (const clothingItem of clothingToCreate) {
+        try {
+          const { error } = await supabase
+            .from('clothing')
+            .insert([clothingItem.data])
+
+          if (error) {
+            if (error.message.includes('duplicate') || error.code === '23505') {
+              errors.push({ row: clothingItem.rowNumber, type: 'clothing', message: 'Duplicate clothing (same brand, type, size, color already exists)' })
+            } else {
+              errors.push({ row: clothingItem.rowNumber, type: 'clothing', message: `Create failed: ${error.message}` })
+            }
+          } else {
+            clothingCreated++
+          }
+        } catch (error: any) {
+          errors.push({ row: clothingItem.rowNumber, type: 'clothing', message: `Error: ${error.message || 'Unknown error'}` })
+        }
+      }
+
       // Step 5: Show results
       console.log('📊 Step 5: Upload complete!')
-      console.log(`  → Results: ${cardsUpdated} cards updated, ${cardsCreated} cards created, ${comicsUpdated} comics updated, ${comicsCreated} comics created`)
+      console.log(`  → Results: ${cardsUpdated} cards updated, ${cardsCreated} cards created, ${comicsUpdated} comics updated, ${comicsCreated} comics created, ${clothingUpdated} clothing updated, ${clothingCreated} clothing created`)
       console.log(`  → Errors: ${errors.length}`)
 
       // Determine result status
@@ -1432,7 +1590,7 @@ export const ItemsPage: React.FC = () => {
       // - "Upload failed" is only shown if Excel couldn't be parsed (catch block)
       // - "Partial success" is shown if file was parsed successfully but there are errors (even if nothing was processed)
       // - "Success" is shown if file was parsed and there are no errors
-      const totalProcessed = cardsCreated + cardsUpdated + comicsCreated + comicsUpdated
+      const totalProcessed = cardsCreated + cardsUpdated + comicsCreated + comicsUpdated + clothingCreated + clothingUpdated
       const hasErrors = errors.length > 0
       // Success: file was parsed successfully and no errors
       // Partial: file was parsed successfully but there are errors (regardless of items processed)
@@ -1446,6 +1604,8 @@ export const ItemsPage: React.FC = () => {
         cardsUpdated,
         comicsCreated,
         comicsUpdated,
+        clothingCreated,
+        clothingUpdated,
         errors
       })
 
@@ -1461,6 +1621,8 @@ export const ItemsPage: React.FC = () => {
         cardsUpdated: 0,
         comicsCreated: 0,
         comicsUpdated: 0,
+        clothingCreated: 0,
+        clothingUpdated: 0,
         errors: [{ row: 0, type: 'card', message: `Failed to process file: ${error.message || 'Unknown error'}` }]
       })
     } finally {
@@ -1612,6 +1774,7 @@ export const ItemsPage: React.FC = () => {
             { key: 'all', label: 'All Items', count: items.length },
             { key: 'card', label: 'Cards', count: items.filter(i => i.item_type === 'card').length },
             { key: 'graded-card', label: 'Graded Cards', count: items.filter(i => i.item_type === 'card' && i.grade != null && !(typeof i.grade === 'string' && i.grade === '')).length },
+            { key: 'clothing', label: 'Clothing', count: items.filter(i => i.item_type === 'clothing').length },
             { key: 'comic', label: 'Comics', count: items.filter(i => i.item_type === 'comic').length },
             { key: 'graded-comic', label: 'Graded Comics', count: items.filter(i => i.item_type === 'comic' && i.grade != null && !(typeof i.grade === 'string' && i.grade === '')).length }
           ].map((tab) => (
@@ -1655,11 +1818,12 @@ export const ItemsPage: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
               <select
                 value={filters.type}
-                onChange={(e) => setFilters({ ...filters, type: e.target.value as '' | 'card' | 'comic' })}
+                onChange={(e) => setFilters({ ...filters, type: e.target.value as '' | 'card' | 'comic' | 'clothing' })}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">All Types</option>
                 <option value="card">Card</option>
+                <option value="clothing">Clothing</option>
                 <option value="comic">Comic</option>
               </select>
             </div>
@@ -2136,9 +2300,11 @@ export const ItemsPage: React.FC = () => {
                       <tr key={`${item.item_type}-${item.id}-${index}`} className={`hover:bg-gray-50 ${isEditing ? 'bg-yellow-50' : ''}`}>
                       <td className={`${viewSize === 'small' ? 'px-3 py-2' : viewSize === 'large' ? 'px-8 py-4' : 'px-6 py-4'} whitespace-nowrap`}>
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full ${viewSize === 'small' ? 'text-xs' : viewSize === 'large' ? 'text-base' : 'text-sm'} font-medium ${
-                          item.item_type === 'card' 
-                            ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-green-100 text-green-800'
+                          item.item_type === 'card'
+                            ? 'bg-blue-100 text-blue-800'
+                            : item.item_type === 'comic'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-purple-100 text-purple-800'
                         }`}>
                           {item.item_type}
                         </span>
@@ -2147,16 +2313,16 @@ export const ItemsPage: React.FC = () => {
                           {isEditing ? (
                             <input
                               type="text"
-                              value={item.item_type === 'card' ? (editingItem.player || '') : (editingItem.title || '')}
-                              onChange={(e) => updateEditingItem(item.id, item.item_type === 'card' ? 'player' : 'title', e.target.value)}
+                              value={item.item_type === 'card' ? (editingItem.player || '') : item.item_type === 'comic' ? (editingItem.title || '') : (editingItem.brand || '')}
+                              onChange={(e) => updateEditingItem(item.id, item.item_type === 'card' ? 'player' : item.item_type === 'comic' ? 'title' : 'brand', e.target.value)}
                               className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-full`}
                             />
                           ) : (
-                        <Link 
-                          to={item.item_type === 'card' ? `/cards/${item.id}` : `/comics/${item.id}`}
+                        <Link
+                          to={item.item_type === 'card' ? `/cards/${item.id}` : item.item_type === 'comic' ? `/comics/${item.id}` : `/clothing/${item.id}`}
                           className={`${textSizes.heading} font-medium text-purple-600 hover:text-purple-900`}
                         >
-                          {item.item_type === 'card' ? item.player : item.title}
+                          {item.item_type === 'card' ? item.player : item.item_type === 'comic' ? item.title : `${item.brand} ${item.type}`}
                         </Link>
                           )}
                       </td>
@@ -2187,7 +2353,7 @@ export const ItemsPage: React.FC = () => {
                                     className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-full`}
                                   />
                                 </>
-                              ) : (
+                              ) : item.item_type === 'comic' ? (
                                 <>
                                   <input
                                     type="text"
@@ -2219,13 +2385,32 @@ export const ItemsPage: React.FC = () => {
                                     className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-full`}
                                   />
                                 </>
+                              ) : (
+                                <>
+                                  <input
+                                    type="text"
+                                    placeholder="Size"
+                                    value={editingItem.size || ''}
+                                    onChange={(e) => updateEditingItem(item.id, 'size', e.target.value)}
+                                    className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-full mb-1`}
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="Color"
+                                    value={editingItem.color || ''}
+                                    onChange={(e) => updateEditingItem(item.id, 'color', e.target.value)}
+                                    className={`${inputSize} border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 w-full`}
+                                  />
+                                </>
                               )}
                             </div>
                           ) : (
                         <div className={`${textSizes.subtext} text-gray-900`}>
-                          {item.item_type === 'card' 
+                          {item.item_type === 'card'
                             ? `${item.manufacturer} ${item.sport} ${item.year}`
-                            : `${item.publisher} #${item.issue} (${item.year})`
+                            : item.item_type === 'comic'
+                            ? `${item.publisher} #${item.issue} (${item.year})`
+                            : `${item.size} / ${item.color}`
                           }
                         </div>
                           )}
@@ -2616,8 +2801,9 @@ export const ItemsPage: React.FC = () => {
                   {uploadResults.success && (
                     <div className="mb-4">
                       <div className="bg-green-50 border border-green-200 rounded-md p-4">
-                        {uploadResults.cardsCreated === 0 && uploadResults.cardsUpdated === 0 && 
-                         uploadResults.comicsCreated === 0 && uploadResults.comicsUpdated === 0 ? (
+                        {uploadResults.cardsCreated === 0 && uploadResults.cardsUpdated === 0 &&
+                         uploadResults.comicsCreated === 0 && uploadResults.comicsUpdated === 0 &&
+                         uploadResults.clothingCreated === 0 && uploadResults.clothingUpdated === 0 ? (
                           <p className="text-green-800 font-medium">Upload successful! All items are already up to date - no changes were needed.</p>
                         ) : (
                           <>
@@ -2627,6 +2813,8 @@ export const ItemsPage: React.FC = () => {
                               {uploadResults.cardsUpdated > 0 && <p>• {uploadResults.cardsUpdated} card(s) updated</p>}
                               {uploadResults.comicsCreated > 0 && <p>• {uploadResults.comicsCreated} comic(s) created</p>}
                               {uploadResults.comicsUpdated > 0 && <p>• {uploadResults.comicsUpdated} comic(s) updated</p>}
+                              {uploadResults.clothingCreated > 0 && <p>• {uploadResults.clothingCreated} clothing item(s) created</p>}
+                              {uploadResults.clothingUpdated > 0 && <p>• {uploadResults.clothingUpdated} clothing item(s) updated</p>}
                             </div>
                           </>
                         )}
@@ -2639,13 +2827,16 @@ export const ItemsPage: React.FC = () => {
                       <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
                         <p className="text-green-800 font-medium mb-2">File upload & parse successful</p>
                         <div className="text-sm text-green-700 space-y-1">
-                          {(uploadResults.cardsCreated > 0 || uploadResults.cardsUpdated > 0 || 
-                            uploadResults.comicsCreated > 0 || uploadResults.comicsUpdated > 0) ? (
+                          {(uploadResults.cardsCreated > 0 || uploadResults.cardsUpdated > 0 ||
+                            uploadResults.comicsCreated > 0 || uploadResults.comicsUpdated > 0 ||
+                            uploadResults.clothingCreated > 0 || uploadResults.clothingUpdated > 0) ? (
                             <>
                               {uploadResults.cardsCreated > 0 && <p>• {uploadResults.cardsCreated} card(s) created</p>}
                               {uploadResults.cardsUpdated > 0 && <p>• {uploadResults.cardsUpdated} card(s) updated</p>}
                               {uploadResults.comicsCreated > 0 && <p>• {uploadResults.comicsCreated} comic(s) created</p>}
                               {uploadResults.comicsUpdated > 0 && <p>• {uploadResults.comicsUpdated} comic(s) updated</p>}
+                              {uploadResults.clothingCreated > 0 && <p>• {uploadResults.clothingCreated} clothing item(s) created</p>}
+                              {uploadResults.clothingUpdated > 0 && <p>• {uploadResults.clothingUpdated} clothing item(s) updated</p>}
                             </>
                           ) : (
                             <>

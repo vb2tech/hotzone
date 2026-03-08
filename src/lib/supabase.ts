@@ -74,5 +74,22 @@ export interface Comic extends BaseItem {
   description: string | null
 }
 
+export interface Clothing {
+  id: string
+  user_id: string
+  container_id: string
+  created_at: string
+  updated_at: string
+  condition: string | null
+  quantity: number
+  brand: string
+  type: string
+  size: string
+  color: string
+  price: number | null
+  cost: number | null
+  description: string | null
+}
+
 // Union type for items
-export type Item = Card | Comic
+export type Item = Card | Comic | Clothing
